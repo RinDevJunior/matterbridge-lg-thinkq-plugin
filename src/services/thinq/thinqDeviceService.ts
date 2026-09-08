@@ -1,0 +1,51 @@
+import { AnsiLogger } from 'matterbridge/logger';
+
+import { isValidThinqDeviceId, ThinqDevice, toThinqDevice } from '../../core/domain/entities/ThinqDevice.js';
+import { ThinqApiClient } from './thinqApiClient.js';
+
+export type ThinqDeviceUpdateListener = (deviceId: string, snapshot: Record<string, unknown>) => void;
+
+/**
+ * Discovers ThinQ devices and polls their state. Phase 1 is polling-only (no MQTT) — ports
+ * `pollThinQ2Devices()`'s full-refetch-per-tick approach (`platformMonitor.ts:104-123`).
+ */
+export class ThinqDeviceService {
+	private pollTimer: NodeJS.Timeout | undefined;
+
+	constructor(
+		private readonly apiClient: ThinqApiClient,
+		private readonly logger: AnsiLogger,
+	) {}
+
+	/** Fetches every device on the account and maps it to the generic `ThinqDevice` domain entity. */
+	public async discoverDevices(): Promise<ThinqDevice[]> {
+		const rawDevices = await this.apiClient.getListDevices();
+
+		return rawDevices.filter((device) => isValidThinqDeviceId(device.deviceId)).map((device) => toThinqDevice(device));
+	}
+
+	public startPolling(intervalMs: number, onUpdate: ThinqDeviceUpdateListener): void {
+		this.stopPolling();
+		this.pollTimer = setInterval(() => {
+			void this.pollOnce(onUpdate);
+		}, intervalMs);
+	}
+
+	public stopPolling(): void {
+		if (this.pollTimer) {
+			clearInterval(this.pollTimer);
+			this.pollTimer = undefined;
+		}
+	}
+
+	private async pollOnce(onUpdate: ThinqDeviceUpdateListener): Promise<void> {
+		try {
+			const devices = await this.discoverDevices();
+			for (const device of devices) {
+				onUpdate(device.id, device.snapshot.raw);
+			}
+		} catch (error) {
+			this.logger.error(`ThinQ polling tick failed: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+}

@@ -1,0 +1,34 @@
+# Node modules
+node_modules/
+
+# TypeScript build output
+dist/
+build/
+out/
+coverage/
+report/
+.idea/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+
+# Env files
+.env
+npm-shrinkwrap.json
+test-report.junit.xml
+type-check.log
+.cli-session.json
+
+# CodeGraph local index
+.codegraph/
+
+# Ephemeral per-task workspace
+workspace/*

@@ -1,0 +1,79 @@
+{
+	"title": "Matterbridge LG ThinQ + webOS Plugin",
+	"description": "matterbridge-lg-thinkq-plugin v. 0.1.0 by https://github.com/RinDevJunior",
+	"type": "object",
+	"properties": {
+		"name": {
+			"description": "Plugin name",
+			"type": "string",
+			"readOnly": true,
+			"ui:widget": "hidden"
+		},
+		"type": {
+			"description": "Plugin type",
+			"type": "string",
+			"readOnly": true,
+			"ui:widget": "hidden"
+		},
+		"thinq": {
+			"title": "LG ThinQ (cloud)",
+			"type": "object",
+			"properties": {
+				"devices": {
+					"title": "ThinQ Devices",
+					"description": "Populated once ThinQ auth/discovery lands (Phase 1+).",
+					"type": "array",
+					"items": {
+						"type": "object"
+					}
+				}
+			}
+		},
+		"webos": {
+			"title": "LG webOS TV (local network)",
+			"type": "object",
+			"properties": {
+				"devices": {
+					"title": "webOS TV Devices",
+					"description": "Populated once webOS pairing/control lands (Phase 3+).",
+					"type": "array",
+					"items": {
+						"type": "object"
+					}
+				}
+			}
+		},
+		"advancedFeature": {
+			"title": "Advanced features",
+			"type": "object",
+			"properties": {
+				"settings": {
+					"title": "Advanced Features Configuration",
+					"type": "object",
+					"properties": {
+						"debug": {
+							"title": "Enable Debug Mode",
+							"description": "Enable the debug for the plugin (development only)",
+							"type": "boolean",
+							"default": false
+						},
+						"clearStorageOnStartup": {
+							"title": "Clear Storage On Startup",
+							"description": "Clear persistence storage and re-initialize the plugin on next startup.",
+							"type": "boolean",
+							"default": false
+						},
+						"unregisterOnShutdown": {
+							"title": "Unregister On Shutdown",
+							"description": "Unregister all devices on shutdown (development only)",
+							"type": "boolean",
+							"default": false
+						}
+					},
+					"required": ["debug", "clearStorageOnStartup", "unregisterOnShutdown"]
+				}
+			}
+		}
+	},
+	"required": ["thinq", "webos", "advancedFeature"]
+}
