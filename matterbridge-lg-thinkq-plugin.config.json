@@ -3,6 +3,13 @@
 	"type": "DynamicPlatform",
 	"version": "0.1.0",
 	"thinq": {
+		"loginType": "account",
+		"username": "",
+		"password": "",
+		"refreshToken": "",
+		"country": "US",
+		"language": "en-US",
+		"refreshIntervalSeconds": 60,
 		"devices": []
 	},
 	"webos": {
@@ -12,6 +19,7 @@
 		"settings": {
 			"debug": true,
 			"clearStorageOnStartup": false,
+			"forceAuthentication": false,
 			"unregisterOnShutdown": false
 		}
 	}

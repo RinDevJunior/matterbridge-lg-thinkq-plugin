@@ -19,12 +19,88 @@
 			"title": "LG ThinQ (cloud)",
 			"type": "object",
 			"properties": {
+				"loginType": {
+					"title": "Login Type",
+					"description": "Authenticate with a ThinQ account (username/password) or a pre-issued refresh token.",
+					"type": "string",
+					"enum": ["account", "token"],
+					"default": "account"
+				},
+				"country": {
+					"title": "Country",
+					"description": "ThinQ account country code (e.g. US, KR, GB).",
+					"type": "string",
+					"default": "US"
+				},
+				"language": {
+					"title": "Language",
+					"description": "ThinQ account language/locale (e.g. en-US, ko-KR).",
+					"type": "string",
+					"default": "en-US"
+				},
+				"refreshIntervalSeconds": {
+					"title": "Refresh Interval",
+					"description": "Device state refresh interval in seconds.",
+					"type": "number",
+					"default": 60,
+					"minimum": 1,
+					"maximum": 3600
+				},
 				"devices": {
 					"title": "ThinQ Devices",
-					"description": "Populated once ThinQ auth/discovery lands (Phase 1+).",
+					"description": "Auto-populated on discovery.",
 					"type": "array",
 					"items": {
 						"type": "object"
+					}
+				}
+			},
+			"required": ["loginType", "country", "language"],
+			"dependencies": {
+				"loginType": {
+					"if": {
+						"properties": {
+							"loginType": {
+								"const": "account"
+							}
+						}
+					},
+					"then": {
+						"properties": {
+							"username": {
+								"title": "ThinQ Account Username",
+								"description": "Email address or phone number used to sign in to LG ThinQ.",
+								"type": "string",
+								"minLength": 3
+							},
+							"password": {
+								"title": "ThinQ Account Password",
+								"description": "Password for your LG ThinQ account.",
+								"type": "string",
+								"ui:widget": "password"
+							}
+						},
+						"required": ["username", "password"]
+					},
+					"else": {
+						"if": {
+							"properties": {
+								"loginType": {
+									"const": "token"
+								}
+							}
+						},
+						"then": {
+							"properties": {
+								"refreshToken": {
+									"title": "Refresh Token",
+									"description": "Pre-issued ThinQ refresh token, used instead of username/password.",
+									"type": "string",
+									"ui:widget": "password"
+								}
+							},
+							"required": ["refreshToken"]
+						}
 					}
 				}
 			}
@@ -63,6 +139,12 @@
 							"type": "boolean",
 							"default": false
 						},
+						"forceAuthentication": {
+							"title": "Force Authentication",
+							"description": "Ignore any cached/saved login session and always authenticate fresh on every start.",
+							"type": "boolean",
+							"default": false
+						},
 						"unregisterOnShutdown": {
 							"title": "Unregister On Shutdown",
 							"description": "Unregister all devices on shutdown (development only)",
@@ -70,7 +152,7 @@
 							"default": false
 						}
 					},
-					"required": ["debug", "clearStorageOnStartup", "unregisterOnShutdown"]
+					"required": ["debug", "clearStorageOnStartup", "forceAuthentication", "unregisterOnShutdown"]
 				}
 			}
 		}

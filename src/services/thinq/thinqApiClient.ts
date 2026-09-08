@@ -1,12 +1,16 @@
+import crypto from 'node:crypto';
+
 import axios from 'axios';
 import { AnsiLogger } from 'matterbridge/logger';
 
-import { TokenExpiredError } from '../../errors/index.js';
+import { AuthenticationError, TokenExpiredError } from '../../errors/index.js';
+import { maskSensitiveFields } from '../../utils/mask.js';
 import {
 	formatRfc2822Utc,
 	Gateway,
 	GatewayData,
 	signThinqMessage,
+	THINQ_APPLICATION_KEY,
 	THINQ_CLIENT_ID,
 	THINQ_OAUTH_SECRET_KEY,
 } from './gateway.js';
@@ -64,6 +68,8 @@ function randomMessageId(length = 22): string {
 export class ThinqApiClient {
 	private gateway: Gateway | undefined;
 	private homesCache: ThinqHome[] | undefined;
+	private userNumber: string | undefined;
+	private clientId: string | undefined;
 
 	constructor(
 		private session: ThinqSession,
@@ -77,9 +83,25 @@ export class ThinqApiClient {
 		this.session = session;
 	}
 
+	/**
+	 * Records the user's numeric profile ID (`userNo`, from `getUserNumber`) for this client instance and
+	 * computes a fresh per-session `x-client-id` from it (`sha256(userNumber + Date.now())`), mirroring
+	 * `API.ready()` (`API.ts:392-399`). Must be called once after every successful authentication before any
+	 * ThinQ2 listing call (`service/homes`, etc.), otherwise those calls 400.
+	 */
+	public setUserNumber(userNumber: string): void {
+		this.userNumber = userNumber;
+		this.clientId = crypto.createHash('sha256').update(`${userNumber}${Date.now()}`).digest('hex');
+	}
+
 	public async getGateway(): Promise<GatewayData> {
 		if (!this.gateway) {
-			const response = await axios.get<{ result: GatewayData }>(GATEWAY_URL, { headers: this.defaultHeaders });
+			const headers = this.defaultHeaders;
+			this.logger.debug(
+				`ThinQ getGateway request -> GET ${GATEWAY_URL} headers=${JSON.stringify(maskSensitiveFields(headers))}`,
+			);
+
+			const response = await axios.get<{ result: GatewayData }>(GATEWAY_URL, { headers });
 			this.gateway = new Gateway(response.data.result);
 		}
 
@@ -129,17 +151,22 @@ export class ThinqApiClient {
 		const timestamp = formatRfc2822Utc(new Date());
 		const requestUrl = `/oauth/1.0/oauth2/token?${data.toString()}`;
 		const signature = signThinqMessage(`${requestUrl}\n${timestamp}`, THINQ_OAUTH_SECRET_KEY);
+		const headers = {
+			'x-lge-app-os': 'ADR',
+			'x-lge-appkey': THINQ_CLIENT_ID,
+			'x-lge-oauth-signature': signature,
+			'x-lge-oauth-date': timestamp,
+			Accept: 'application/json',
+			'Content-Type': 'application/x-www-form-urlencoded',
+		};
+
+		this.logger.debug(
+			`ThinQ refreshToken request -> POST ${tokenUrl} headers=${JSON.stringify(maskSensitiveFields(headers))} body=${JSON.stringify(maskSensitiveFields(Object.fromEntries(data.entries())))}`,
+		);
 
 		try {
 			const response = await axios.post<{ access_token: string; expires_in: string }>(tokenUrl, data.toString(), {
-				headers: {
-					'x-lge-app-os': 'ADR',
-					'x-lge-appkey': THINQ_CLIENT_ID,
-					'x-lge-oauth-signature': signature,
-					'x-lge-oauth-date': timestamp,
-					Accept: 'application/json',
-					'Content-Type': 'application/x-www-form-urlencoded',
-				},
+				headers,
 			});
 
 			session.updateAccessToken(
@@ -154,12 +181,57 @@ export class ThinqApiClient {
 		}
 	}
 
+	/**
+	 * Fetches the user's numeric profile ID (`userNo`) required for `x-user-no`/`x-client-id`. Port of
+	 * `Auth.ts:399-422` (`getUserNumber`) — `GET {lgeapi_url}users/profile` with `Authorization: Bearer`
+	 * plus the same HMAC signing primitive used by `refreshToken()`. Does not mutate client state; call
+	 * `setUserNumber()` with the result to activate it on subsequent requests.
+	 */
+	public async getUserNumber(accessToken: string): Promise<string> {
+		const profileUrl = `https://${this.country.toLowerCase()}.lgeapi.com/users/profile`;
+		const timestamp = formatRfc2822Utc(new Date());
+		const signature = signThinqMessage(`/users/profile\n${timestamp}`, THINQ_OAUTH_SECRET_KEY);
+		const headers = {
+			Accept: 'application/json',
+			Authorization: `Bearer ${accessToken}`,
+			'X-Lge-Svccode': 'SVC202',
+			'X-Application-Key': THINQ_APPLICATION_KEY,
+			'lgemp-x-app-key': THINQ_CLIENT_ID,
+			'X-Device-Type': 'M01',
+			'X-Device-Platform': 'ADR',
+			'x-lge-oauth-date': timestamp,
+			'x-lge-oauth-signature': signature,
+		};
+
+		this.logger.debug(
+			`ThinQ getUserNumber request -> GET ${profileUrl} headers=${JSON.stringify(maskSensitiveFields(headers))}`,
+		);
+
+		try {
+			const response = await axios.get<{ status?: number; message?: string; account: { userNo: string } }>(profileUrl, {
+				headers,
+			});
+
+			if (response.data.status === 2) {
+				throw new AuthenticationError(response.data.message ?? 'LG user profile lookup failed.');
+			}
+
+			return response.data.account.userNo;
+		} catch (error) {
+			this.logger.error(`ThinQ getUserNumber failed: ${error instanceof Error ? error.message : String(error)}`);
+			throw error;
+		}
+	}
+
 	private get defaultHeaders(): Record<string, string> {
 		const authHeaders: Record<string, string> = {};
 		if (this.session.accessToken) {
 			authHeaders['x-emp-token'] = this.session.accessToken;
 		}
-		authHeaders['x-client-id'] = API_CLIENT_ID;
+		if (this.userNumber) {
+			authHeaders['x-user-no'] = this.userNumber;
+		}
+		authHeaders['x-client-id'] = this.clientId ?? API_CLIENT_ID;
 
 		return {
 			'x-api-key': API_KEY,
@@ -190,9 +262,13 @@ export class ThinqApiClient {
 		}
 
 		const url = new URL(uri, gateway.thinq2Url).href;
+		const headers = this.defaultHeaders;
+		this.logger.debug(
+			`ThinQ request -> ${method.toUpperCase()} ${url} headers=${JSON.stringify(maskSensitiveFields(headers))} data=${JSON.stringify(maskSensitiveFields(data as Record<string, unknown> | undefined))}`,
+		);
 
 		try {
-			const response = await axios.request<T>({ method, url, data, headers: this.defaultHeaders });
+			const response = await axios.request<T>({ method, url, data, headers });
 			return response.data;
 		} catch (error) {
 			if (axios.isAxiosError(error) && error.response?.status === 401) {

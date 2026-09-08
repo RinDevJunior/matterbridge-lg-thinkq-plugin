@@ -140,7 +140,9 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 	 */
 	private async startThinqDevices(): Promise<void> {
 		const userDataRepository = this.thinqServices.getUserDataRepository();
-		let userData = await userDataRepository.loadUserData();
+		let userData = this.configManager.isForceAuthenticationEnabled
+			? undefined
+			: await userDataRepository.loadUserData();
 
 		if (!userData) {
 			userData = await this.thinqServices
@@ -164,6 +166,9 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 		}
 
 		this.thinqServices.apiClient.setSession(ThinqSession.fromData(userData));
+		if (userData.userNumber) {
+			this.thinqServices.apiClient.setUserNumber(userData.userNumber);
+		}
 		await userDataRepository.saveUserData(userData);
 
 		const devices = await this.thinqServices.getDeviceDiscovery().discoverDevices();

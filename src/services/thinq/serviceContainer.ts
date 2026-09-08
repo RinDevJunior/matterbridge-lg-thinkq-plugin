@@ -50,6 +50,7 @@ export class ThinqServiceContainer {
 			this.authenticationCoordinatorInstance = new AuthenticationCoordinator(
 				accountStrategy,
 				tokenStrategy,
+				this.apiClientInstance,
 				this.logger,
 			);
 		}

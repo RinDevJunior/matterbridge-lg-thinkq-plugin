@@ -14,4 +14,6 @@ export interface ThinqUserData {
 	expiresAtEpochSeconds: number;
 	country: string;
 	language: string;
+	/** LG's numeric account profile ID (`userNo`), fetched post-login and required for `x-user-no`/`x-client-id`. */
+	userNumber?: string;
 }

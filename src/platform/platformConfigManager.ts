@@ -45,6 +45,10 @@ export class PlatformConfigManager {
 		return this.config.advancedFeature.settings.clearStorageOnStartup;
 	}
 
+	public get isForceAuthenticationEnabled(): boolean {
+		return this.config.advancedFeature.settings.forceAuthentication;
+	}
+
 	public get unregisterOnShutdown(): boolean {
 		return this.config.advancedFeature.settings.unregisterOnShutdown;
 	}

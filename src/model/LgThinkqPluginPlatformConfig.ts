@@ -18,6 +18,7 @@ export interface WebosPluginConfig {
 export interface AdvancedFeatureSetting {
 	debug: boolean;
 	clearStorageOnStartup: boolean;
+	forceAuthentication: boolean;
 	unregisterOnShutdown: boolean;
 }
 
@@ -36,6 +37,7 @@ export function createDefaultAdvancedFeature(): AdvancedFeatureConfiguration {
 		settings: {
 			debug: false,
 			clearStorageOnStartup: false,
+			forceAuthentication: false,
 			unregisterOnShutdown: false,
 		},
 	};

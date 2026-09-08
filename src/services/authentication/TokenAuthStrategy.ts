@@ -22,6 +22,7 @@ export class TokenAuthStrategy implements IAuthStrategy {
 		}
 
 		this.logger.notice('Authenticating with LG ThinQ refresh token...');
+		this.logger.debug('TokenAuthStrategy: resolving gateway before refresh-token exchange');
 
 		await this.apiClient.getGateway();
 
