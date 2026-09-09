@@ -1,5 +1,16 @@
 import { PlatformConfig } from 'matterbridge';
 
+export interface ThinqDeviceCapabilityConfig {
+	supportsHeat?: boolean;
+	supportsDry?: boolean;
+	supportsFanSpeedControl?: boolean;
+}
+
+export interface ThinqDeviceConfigEntry {
+	deviceId: string;
+	capabilities?: ThinqDeviceCapabilityConfig;
+}
+
 export interface ThinqAuthConfig {
 	loginType: 'account' | 'token';
 	username?: string;
@@ -8,7 +19,7 @@ export interface ThinqAuthConfig {
 	country: string;
 	language: string;
 	refreshIntervalSeconds?: number;
-	devices: unknown[];
+	devices: ThinqDeviceConfigEntry[];
 }
 
 export interface WebosPluginConfig {

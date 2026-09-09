@@ -5,6 +5,8 @@
 
 import type { AnsiLogger } from 'matterbridge/logger';
 
+import type { AirConditionerCapabilities } from '../core/domain/value-objects/AirConditionerCapabilities.js';
+import { resolveAirConditionerCapabilities } from '../core/domain/value-objects/AirConditionerCapabilities.js';
 import {
 	createDefaultAdvancedFeature,
 	createDefaultThinqConfig,
@@ -79,6 +81,10 @@ export class PlatformConfigManager {
 
 	public get thinqRefreshIntervalSeconds(): number {
 		return this.config.thinq.refreshIntervalSeconds ?? DEFAULT_THINQ_REFRESH_INTERVAL_SECONDS;
+	}
+
+	public getDeviceCapabilities(deviceId: string): AirConditionerCapabilities {
+		return resolveAirConditionerCapabilities(this.config.thinq.devices, deviceId);
 	}
 
 	public validateConfig(): boolean {

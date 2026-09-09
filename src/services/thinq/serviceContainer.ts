@@ -68,7 +68,11 @@ export class ThinqServiceContainer {
 	}
 
 	public getDeviceConfigurator(): ThinqDeviceConfigurator {
-		this.deviceConfiguratorInstance ??= new ThinqDeviceConfigurator(this.logger, this.apiClientInstance);
+		this.deviceConfiguratorInstance ??= new ThinqDeviceConfigurator(
+			this.logger,
+			this.apiClientInstance,
+			this.configManager,
+		);
 		return this.deviceConfiguratorInstance;
 	}
 }

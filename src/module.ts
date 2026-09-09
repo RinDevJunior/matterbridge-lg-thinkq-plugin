@@ -1,7 +1,6 @@
 import Path from 'node:path';
 
-import { MatterbridgeDynamicPlatform, PlatformConfig, PlatformMatterbridge } from 'matterbridge';
-import type { AirConditioner } from 'matterbridge/devices';
+import { MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig, PlatformMatterbridge } from 'matterbridge';
 import { AnsiLogger, LogLevel } from 'matterbridge/logger';
 import NodePersist from 'node-persist';
 
@@ -119,12 +118,17 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 
 		this.thinqPollingIntervalMs = this.configManager.thinqRefreshIntervalSeconds * 1000;
 		this.thinqServices.getDeviceService().startPolling(this.thinqPollingIntervalMs, (deviceId, snapshot) => {
-			const airConditioner = this.registry.getDevice(deviceId) as AirConditioner | undefined;
+			const airConditioner = this.registry.getDevice(deviceId) as MatterbridgeEndpoint | undefined;
 			if (!airConditioner) {
 				this.log.debug(`ThinQ device update received for unregistered device ${deviceId}, skipping.`);
 				return;
 			}
-			void applyThinqSnapshotToAirConditioner(airConditioner, snapshot, this.log).catch((error: unknown) => {
+			void applyThinqSnapshotToAirConditioner(
+				airConditioner,
+				snapshot,
+				this.configManager.getDeviceCapabilities(deviceId),
+				this.log,
+			).catch((error: unknown) => {
 				this.log.error(
 					`Failed to apply ThinQ state update for ${deviceId}: ${error instanceof Error ? error.message : String(error)}`,
 				);
