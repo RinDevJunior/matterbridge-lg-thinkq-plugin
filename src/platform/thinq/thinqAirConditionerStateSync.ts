@@ -1,0 +1,121 @@
+import { AirConditioner } from 'matterbridge/devices';
+import { AnsiLogger } from 'matterbridge/logger';
+import { FanControl, OnOff, TemperatureMeasurement, Thermostat } from 'matterbridge/matter/clusters';
+
+import type { ThinqSnapshot } from '../../core/domain/value-objects/ThinqSnapshot.js';
+import {
+	THINQ_FAN_SPEED_AUTO,
+	THINQ_FAN_SPEED_LOW,
+	THINQ_FAN_SPEED_MEDIUM,
+} from './thinqAirConditionerCommandHandlers.js';
+import { mapWindStrengthToFanMode } from './thinqDeviceConfigurator.js';
+
+/** LG `airState.opMode` values (`homebridge-lg-thinq/src/devices/AirConditioner.ts`). */
+const THINQ_OP_MODE_COOL = 0;
+const THINQ_OP_MODE_DRY = 1;
+const THINQ_OP_MODE_FAN = 2;
+const THINQ_OP_MODE_HEAT = 4;
+const THINQ_OP_MODE_AIR_CLEAN = 5;
+const THINQ_OP_MODE_AUTO = 6;
+
+const WIND_STRENGTH_LOW_PERCENT = 20;
+const WIND_STRENGTH_MEDIUM_PERCENT = 50;
+const WIND_STRENGTH_HIGH_PERCENT = 90;
+
+/** Maps a ThinQ `airState.windStrength` value to a Matter `FanControl.percentCurrent` (Auto has no percent equivalent). */
+export function mapWindStrengthToPercent(windStrength: number | undefined): number | undefined {
+	if (windStrength === undefined || windStrength === THINQ_FAN_SPEED_AUTO) {
+		return undefined;
+	}
+	if (windStrength <= THINQ_FAN_SPEED_LOW) {
+		return WIND_STRENGTH_LOW_PERCENT;
+	}
+	if (windStrength <= THINQ_FAN_SPEED_MEDIUM) {
+		return WIND_STRENGTH_MEDIUM_PERCENT;
+	}
+	return WIND_STRENGTH_HIGH_PERCENT;
+}
+
+/** Maps ThinQ power-state + `airState.opMode` to a Matter `Thermostat.SystemMode`. */
+export function mapOperationModeToSystemMode(
+	operationMode: number | undefined,
+	isPowerOn: boolean,
+): Thermostat.SystemMode {
+	if (!isPowerOn) {
+		return Thermostat.SystemMode.Off;
+	}
+
+	switch (operationMode) {
+		case THINQ_OP_MODE_AUTO:
+			return Thermostat.SystemMode.Auto;
+		case THINQ_OP_MODE_COOL:
+			return Thermostat.SystemMode.Cool;
+		case THINQ_OP_MODE_HEAT:
+			return Thermostat.SystemMode.Heat;
+		case THINQ_OP_MODE_FAN:
+			return Thermostat.SystemMode.FanOnly;
+		case THINQ_OP_MODE_DRY:
+			return Thermostat.SystemMode.Dry;
+		case THINQ_OP_MODE_AIR_CLEAN:
+		default:
+			return Thermostat.SystemMode.Auto;
+	}
+}
+
+/**
+ * Pushes a freshly polled ThinQ snapshot onto the Matter `AirConditioner` endpoint's attributes
+ * (device → Apple Home). Uses `updateAttribute` (idempotent) to avoid redundant attribute-report churn.
+ */
+export async function applyThinqSnapshotToAirConditioner(
+	airConditioner: AirConditioner,
+	snapshot: ThinqSnapshot,
+	logger: AnsiLogger,
+): Promise<void> {
+	await airConditioner.updateAttribute(OnOff.id, 'onOff', snapshot.isPowerOn, logger);
+
+	const currentTemperatureCelsius = snapshot.currentTemperatureCelsius;
+	if (currentTemperatureCelsius !== undefined) {
+		await airConditioner.updateAttribute(
+			TemperatureMeasurement.id,
+			'measuredValue',
+			currentTemperatureCelsius * 100,
+			logger,
+		);
+		await airConditioner.updateAttribute(Thermostat.id, 'localTemperature', currentTemperatureCelsius * 100, logger);
+	}
+
+	const targetTemperatureCelsius = snapshot.targetTemperatureCelsius;
+	if (targetTemperatureCelsius !== undefined) {
+		await airConditioner.updateAttribute(
+			Thermostat.id,
+			'occupiedCoolingSetpoint',
+			targetTemperatureCelsius * 100,
+			logger,
+		);
+		await airConditioner.updateAttribute(
+			Thermostat.id,
+			'occupiedHeatingSetpoint',
+			targetTemperatureCelsius * 100,
+			logger,
+		);
+	}
+
+	await airConditioner.updateAttribute(
+		Thermostat.id,
+		'systemMode',
+		mapOperationModeToSystemMode(snapshot.operationMode, snapshot.isPowerOn),
+		logger,
+	);
+
+	await airConditioner.updateAttribute(
+		FanControl.id,
+		'fanMode',
+		mapWindStrengthToFanMode(snapshot.windStrength),
+		logger,
+	);
+
+	const percentCurrent = mapWindStrengthToPercent(snapshot.windStrength);
+	if (percentCurrent !== undefined) {
+		await airConditioner.updateAttribute(FanControl.id, 'percentCurrent', percentCurrent, logger);
+	}
+}

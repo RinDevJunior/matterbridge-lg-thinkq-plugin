@@ -50,6 +50,8 @@ export interface ThinqCommandPayload {
 	dataKey?: string | null;
 	dataValue?: unknown;
 	dataSetList?: Record<string, unknown>;
+	/** Overrides `sendCommand`'s default `'Set'`, e.g. `'Operation'` for AC power (homebridge-lg-thinq parity). */
+	command?: string;
 }
 
 function randomMessageId(length = 22): string {

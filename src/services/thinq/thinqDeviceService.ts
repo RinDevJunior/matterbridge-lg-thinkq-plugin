@@ -1,9 +1,10 @@
 import { AnsiLogger } from 'matterbridge/logger';
 
 import { isValidThinqDeviceId, ThinqDevice, toThinqDevice } from '../../core/domain/entities/ThinqDevice.js';
+import type { ThinqSnapshot } from '../../core/domain/value-objects/ThinqSnapshot.js';
 import { ThinqApiClient } from './thinqApiClient.js';
 
-export type ThinqDeviceUpdateListener = (deviceId: string, snapshot: Record<string, unknown>) => void;
+export type ThinqDeviceUpdateListener = (deviceId: string, snapshot: ThinqSnapshot) => void;
 
 /**
  * Discovers ThinQ devices and polls their state. Phase 1 is polling-only (no MQTT) — ports
@@ -42,7 +43,7 @@ export class ThinqDeviceService {
 		try {
 			const devices = await this.discoverDevices();
 			for (const device of devices) {
-				onUpdate(device.id, device.snapshot.raw);
+				onUpdate(device.id, device.snapshot);
 			}
 		} catch (error) {
 			this.logger.error(`ThinQ polling tick failed: ${error instanceof Error ? error.message : String(error)}`);

@@ -3,17 +3,19 @@ import { AnsiLogger } from 'matterbridge/logger';
 import { FanControl } from 'matterbridge/matter/clusters';
 
 import type { ThinqAirConditionerDevice } from '../../core/domain/entities/ThinqDevice.js';
-
-/** LG `airState.windStrength` values (`homebridge-lg-thinq/src/devices/AirConditioner.ts:15,19-25`). */
-const THINQ_FAN_SPEED_AUTO = 8;
-const THINQ_FAN_SPEED_LOW = 2;
-const THINQ_FAN_SPEED_MEDIUM = 4;
+import type { ThinqApiClient } from '../../services/thinq/thinqApiClient.js';
+import {
+	registerAirConditionerCommandHandlers,
+	THINQ_FAN_SPEED_AUTO,
+	THINQ_FAN_SPEED_LOW,
+	THINQ_FAN_SPEED_MEDIUM,
+} from './thinqAirConditionerCommandHandlers.js';
 
 const DEFAULT_TEMPERATURE_CELSIUS = 20;
 const MAX_HEAT_SETPOINT_LIMIT_CELSIUS = 30;
 const MIN_COOL_SETPOINT_LIMIT_CELSIUS = 18;
 
-function mapWindStrengthToFanMode(windStrength: number | undefined): FanControl.FanMode {
+export function mapWindStrengthToFanMode(windStrength: number | undefined): FanControl.FanMode {
 	if (windStrength === undefined || windStrength === THINQ_FAN_SPEED_AUTO) {
 		return FanControl.FanMode.Auto;
 	}
@@ -31,7 +33,10 @@ function mapWindStrengthToFanMode(windStrength: number | undefined): FanControl.
  * (mirrors `matterbridge-example-dynamic-platform/src/module.ts:2726-2734`).
  */
 export class ThinqDeviceConfigurator {
-	constructor(private readonly logger: AnsiLogger) {}
+	constructor(
+		private readonly logger: AnsiLogger,
+		private readonly apiClient: ThinqApiClient,
+	) {}
 
 	public async registerAirConditioner(device: ThinqAirConditionerDevice): Promise<AirConditioner> {
 		const snapshot = device.snapshot;
@@ -53,6 +58,8 @@ export class ThinqDeviceConfigurator {
 
 		// TODO: quick manual test only — replace with config-driven `enableServerMode` flag.
 		airConditioner.mode = 'server';
+
+		registerAirConditionerCommandHandlers(airConditioner, device, this.apiClient, this.logger);
 
 		return Promise.resolve(airConditioner);
 	}
