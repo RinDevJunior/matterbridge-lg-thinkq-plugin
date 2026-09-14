@@ -1,13 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ThinqAirConditionerDevice } from '../../../core/domain/entities/ThinqDevice.js';
-import { ThinqSnapshot } from '../../../core/domain/value-objects/ThinqSnapshot.js';
 import { DEFAULT_AIR_CONDITIONER_CAPABILITIES } from '../../../core/domain/value-objects/AirConditionerCapabilities.js';
-import type { ThinqApiClient } from '../../../services/thinq/thinqApiClient.js';
+import { ThinqSnapshot } from '../../../core/domain/value-objects/ThinqSnapshot.js';
 import type { PlatformConfigManager } from '../../../platform/platformConfigManager.js';
-import { ThinqDeviceConfigurator } from '../../../platform/thinq/thinqDeviceConfigurator.js';
-import { createMockLogger, asPartial } from '../../helpers/testUtils.js';
 import { registerAirConditionerCommandHandlers } from '../../../platform/thinq/thinqAirConditionerCommandHandlers.js';
+import { ThinqDeviceConfigurator } from '../../../platform/thinq/thinqDeviceConfigurator.js';
+import type { ThinqApiClient } from '../../../services/thinq/thinqApiClient.js';
+import { asPartial, createMockLogger } from '../../helpers/testUtils.js';
 
 vi.mock('../../../platform/thinq/thinqAirConditionerCommandHandlers.js');
 vi.mock('../../../platform/thinq/thinqAirConditionerEndpointFactory.js', () => ({
@@ -126,9 +126,7 @@ describe('ThinqDeviceConfigurator', () => {
 
 			// Assert
 			// Verify it was called with the correct temperature from the device snapshot (22°C current, 24°C target)
-			expect(mockLogger.info).toHaveBeenCalledWith(
-				expect.stringContaining('Living Room AC'),
-			);
+			expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('Living Room AC'));
 		});
 
 		it('should use default temperature when snapshot values are missing', async () => {
@@ -148,9 +146,7 @@ describe('ThinqDeviceConfigurator', () => {
 			await configurator.registerAirConditioner(deviceWithoutTemp);
 
 			// Assert
-			expect(mockLogger.info).toHaveBeenCalledWith(
-				expect.stringContaining('Registering ThinQ AirConditioner'),
-			);
+			expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('Registering ThinQ AirConditioner'));
 		});
 
 		it('should set mode to server on the endpoint', async () => {

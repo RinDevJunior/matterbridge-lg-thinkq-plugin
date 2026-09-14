@@ -1,19 +1,19 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MatterbridgeEndpoint } from 'matterbridge';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ThinqAirConditionerDevice } from '../../../core/domain/entities/ThinqDevice.js';
-import { ThinqSnapshot } from '../../../core/domain/value-objects/ThinqSnapshot.js';
 import type { AirConditionerCapabilities } from '../../../core/domain/value-objects/AirConditionerCapabilities.js';
 import { DEFAULT_AIR_CONDITIONER_CAPABILITIES } from '../../../core/domain/value-objects/AirConditionerCapabilities.js';
-import type { ThinqApiClient } from '../../../services/thinq/thinqApiClient.js';
+import { ThinqSnapshot } from '../../../core/domain/value-objects/ThinqSnapshot.js';
 import {
 	registerAirConditionerCommandHandlers,
 	THINQ_FAN_SPEED_AUTO,
+	THINQ_FAN_SPEED_HIGH,
 	THINQ_FAN_SPEED_LOW,
 	THINQ_FAN_SPEED_MEDIUM,
-	THINQ_FAN_SPEED_HIGH,
 } from '../../../platform/thinq/thinqAirConditionerCommandHandlers.js';
-import { createMockLogger, asPartial } from '../../helpers/testUtils.js';
+import type { ThinqApiClient } from '../../../services/thinq/thinqApiClient.js';
+import { asPartial, createMockLogger } from '../../helpers/testUtils.js';
 
 function createMockThinqAirConditionerDevice(): ThinqAirConditionerDevice {
 	return asPartial<ThinqAirConditionerDevice>({
@@ -149,9 +149,9 @@ describe('registerAirConditionerCommandHandlers', () => {
 		it('should send Operation command with value 1', async () => {
 			// Arrange
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const onHandler = vi.mocked(mockEndpoint.addCommandHandler).mock.calls.find(
-				(call: any[]) => call[0] === 'on',
-			)?.[1] as Function | undefined;
+			const onHandler = vi
+				.mocked(mockEndpoint.addCommandHandler)
+				.mock.calls.find((call: any[]) => call[0] === 'on')?.[1] as ((...args: any[]) => any) | undefined;
 
 			// Act
 			if (onHandler) {
@@ -171,15 +171,15 @@ describe('registerAirConditionerCommandHandlers', () => {
 			const testError = new Error('API request failed');
 			vi.mocked(mockApiClient.sendCommand).mockRejectedValueOnce(testError);
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const onHandler = vi.mocked(mockEndpoint.addCommandHandler).mock.calls.find(
-				(call: any[]) => call[0] === 'on',
-			)?.[1] as Function | undefined;
+			const onHandler = vi
+				.mocked(mockEndpoint.addCommandHandler)
+				.mock.calls.find((call: any[]) => call[0] === 'on')?.[1] as ((...args: any[]) => any) | undefined;
 
 			// Act & Assert
-			if (onHandler) {
-				await expect(onHandler({} as never, {} as never)).rejects.toThrow('API request failed');
-				expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining("'on' failed"));
-			}
+			expect(onHandler).toBeDefined();
+			const handler = onHandler as (...args: any[]) => Promise<void>;
+			await expect(handler({} as never, {} as never)).rejects.toThrow('API request failed');
+			expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining("'on' failed"));
 		});
 	});
 
@@ -187,9 +187,9 @@ describe('registerAirConditionerCommandHandlers', () => {
 		it('should send Operation command with value 0', async () => {
 			// Arrange
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const offHandler = vi.mocked(mockEndpoint.addCommandHandler).mock.calls.find(
-				(call: any[]) => call[0] === 'off',
-			)?.[1] as Function | undefined;
+			const offHandler = vi
+				.mocked(mockEndpoint.addCommandHandler)
+				.mock.calls.find((call: any[]) => call[0] === 'off')?.[1] as ((...args: any[]) => any) | undefined;
 
 			// Act
 			if (offHandler) {
@@ -209,15 +209,15 @@ describe('registerAirConditionerCommandHandlers', () => {
 			const testError = new Error('API request failed');
 			vi.mocked(mockApiClient.sendCommand).mockRejectedValueOnce(testError);
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const offHandler = vi.mocked(mockEndpoint.addCommandHandler).mock.calls.find(
-				(call: any[]) => call[0] === 'off',
-			)?.[1] as Function | undefined;
+			const offHandler = vi
+				.mocked(mockEndpoint.addCommandHandler)
+				.mock.calls.find((call: any[]) => call[0] === 'off')?.[1] as ((...args: any[]) => any) | undefined;
 
 			// Act & Assert
-			if (offHandler) {
-				await expect(offHandler({} as never, {} as never)).rejects.toThrow('API request failed');
-				expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining("'off' failed"));
-			}
+			expect(offHandler).toBeDefined();
+			const handler = offHandler as (...args: any[]) => Promise<void>;
+			await expect(handler({} as never, {} as never)).rejects.toThrow('API request failed');
+			expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining("'off' failed"));
 		});
 	});
 
@@ -225,9 +225,10 @@ describe('registerAirConditionerCommandHandlers', () => {
 		it('should ignore update when context.fabric is undefined', async () => {
 			// Arrange
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const setCoolingHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'occupiedCoolingSetpoint',
-			)?.[2] as Function | undefined;
+			const setCoolingHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'occupiedCoolingSetpoint')?.[2] as
+				((...args: any[]) => any) | undefined;
 			const sendCommandSpy = vi.mocked(mockApiClient.sendCommand);
 
 			// Act
@@ -245,9 +246,10 @@ describe('registerAirConditionerCommandHandlers', () => {
 			vi.clearAllMocks();
 			mockApiClient = createMockApiClient();
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const setCoolingHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'occupiedCoolingSetpoint',
-			)?.[2] as Function | undefined;
+			const setCoolingHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'occupiedCoolingSetpoint')?.[2] as
+				((...args: any[]) => any) | undefined;
 
 			// Act: 2200 centidegrees = 22 degrees (already on 0.5 step)
 			if (setCoolingHandler) {
@@ -267,9 +269,10 @@ describe('registerAirConditionerCommandHandlers', () => {
 			vi.clearAllMocks();
 			mockApiClient = createMockApiClient();
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const setCoolingHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'occupiedCoolingSetpoint',
-			)?.[2] as Function | undefined;
+			const setCoolingHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'occupiedCoolingSetpoint')?.[2] as
+				((...args: any[]) => any) | undefined;
 
 			// Act: 2253 centidegrees = 22.53 degrees → rounds to 22.5
 			if (setCoolingHandler) {
@@ -290,9 +293,10 @@ describe('registerAirConditionerCommandHandlers', () => {
 			mockApiClient = createMockApiClient();
 			vi.mocked(mockApiClient.sendCommand).mockRejectedValueOnce(testError);
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const setCoolingHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'occupiedCoolingSetpoint',
-			)?.[2] as Function | undefined;
+			const setCoolingHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'occupiedCoolingSetpoint')?.[2] as
+				((...args: any[]) => any) | undefined;
 			const updateAttributeSpy = vi.mocked(mockEndpoint.updateAttribute);
 
 			// Act
@@ -320,9 +324,10 @@ describe('registerAirConditionerCommandHandlers', () => {
 			};
 			mockApiClient = createMockApiClient();
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, heatCapabilities);
-			const setHeatingHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'occupiedHeatingSetpoint',
-			)?.[2] as Function | undefined;
+			const setHeatingHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'occupiedHeatingSetpoint')?.[2] as
+				((...args: any[]) => any) | undefined;
 
 			// Act
 			if (setHeatingHandler) {
@@ -347,9 +352,10 @@ describe('registerAirConditionerCommandHandlers', () => {
 			mockApiClient = createMockApiClient();
 			vi.mocked(mockApiClient.sendCommand).mockRejectedValueOnce(testError);
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, heatCapabilities);
-			const setHeatingHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'occupiedHeatingSetpoint',
-			)?.[2] as Function | undefined;
+			const setHeatingHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'occupiedHeatingSetpoint')?.[2] as
+				((...args: any[]) => any) | undefined;
 			const updateAttributeSpy = vi.mocked(mockEndpoint.updateAttribute);
 
 			// Act
@@ -367,9 +373,9 @@ describe('registerAirConditionerCommandHandlers', () => {
 		it('should ignore update when context.fabric is undefined', () => {
 			// Arrange
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const setPercentHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'percentSetting',
-			)?.[2] as Function | undefined;
+			const setPercentHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'percentSetting')?.[2] as ((...args: any[]) => any) | undefined;
 			const sendCommandSpy = vi.mocked(mockApiClient.sendCommand);
 
 			// Act
@@ -384,9 +390,9 @@ describe('registerAirConditionerCommandHandlers', () => {
 		it('should ignore null newValue', () => {
 			// Arrange
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const setPercentHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'percentSetting',
-			)?.[2] as Function | undefined;
+			const setPercentHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'percentSetting')?.[2] as ((...args: any[]) => any) | undefined;
 			const sendCommandSpy = vi.mocked(mockApiClient.sendCommand);
 
 			// Act
@@ -401,9 +407,9 @@ describe('registerAirConditionerCommandHandlers', () => {
 		it('should ignore percentSetting=0', () => {
 			// Arrange
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const setPercentHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'percentSetting',
-			)?.[2] as Function | undefined;
+			const setPercentHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'percentSetting')?.[2] as ((...args: any[]) => any) | undefined;
 			const sendCommandSpy = vi.mocked(mockApiClient.sendCommand);
 
 			// Act
@@ -430,16 +436,10 @@ describe('registerAirConditionerCommandHandlers', () => {
 			for (const testCase of testCases) {
 				vi.clearAllMocks();
 				mockApiClient = createMockApiClient();
-				registerAirConditionerCommandHandlers(
-					mockEndpoint,
-					mockDevice,
-					mockApiClient,
-					mockLogger,
-					capabilities,
-				);
-				const setPercentHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-					(call: any[]) => call[1] === 'percentSetting',
-				)?.[2] as Function | undefined;
+				registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
+				const setPercentHandler = vi
+					.mocked(mockEndpoint.subscribeAttribute)
+					.mock.calls.find((call: any[]) => call[1] === 'percentSetting')?.[2] as ((...args: any[]) => any) | undefined;
 
 				// Act
 				if (setPercentHandler) {
@@ -458,9 +458,9 @@ describe('registerAirConditionerCommandHandlers', () => {
 		it('should ignore out-of-range percentSetting values', () => {
 			// Arrange
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const setPercentHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'percentSetting',
-			)?.[2] as Function | undefined;
+			const setPercentHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'percentSetting')?.[2] as ((...args: any[]) => any) | undefined;
 			const sendCommandSpy = vi.mocked(mockApiClient.sendCommand);
 
 			// Act
@@ -478,16 +478,10 @@ describe('registerAirConditionerCommandHandlers', () => {
 				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
 				supportsFanSpeedControl: false,
 			};
-			registerAirConditionerCommandHandlers(
-				mockEndpoint,
-				mockDevice,
-				mockApiClient,
-				mockLogger,
-				noFanCapabilities,
-			);
-			const setPercentHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'percentSetting',
-			)?.[2] as Function | undefined;
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, noFanCapabilities);
+			const setPercentHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'percentSetting')?.[2] as ((...args: any[]) => any) | undefined;
 			const sendCommandSpy = vi.mocked(mockApiClient.sendCommand);
 
 			// Act
@@ -504,9 +498,9 @@ describe('registerAirConditionerCommandHandlers', () => {
 		it('should ignore update when context.fabric is undefined', () => {
 			// Arrange
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const setFanModeHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'fanMode',
-			)?.[2] as Function | undefined;
+			const setFanModeHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'fanMode')?.[2] as ((...args: any[]) => any) | undefined;
 			const sendCommandSpy = vi.mocked(mockApiClient.sendCommand);
 
 			// Act
@@ -518,40 +512,13 @@ describe('registerAirConditionerCommandHandlers', () => {
 			expect(sendCommandSpy).not.toHaveBeenCalled();
 		});
 
-		it('should send Auto mode with windStrength 8', async () => {
-			// Arrange
-			const localEndpoint = {
-				log: mockLogger,
-				addCommandHandler: vi.fn().mockReturnValue(mockEndpoint),
-				subscribeAttribute: vi.fn().mockReturnValue(mockEndpoint),
-				updateAttribute: vi.fn().mockResolvedValue(false),
-			} as unknown as MatterbridgeEndpoint;
-			const localApiClient = createMockApiClient();
-			registerAirConditionerCommandHandlers(localEndpoint, mockDevice, localApiClient, mockLogger, capabilities);
-			const setFanModeHandler = vi.mocked(localEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'fanMode',
-			)?.[2] as Function | undefined;
-
-			// Act - FanControl.FanMode.Auto = 0
-			if (setFanModeHandler) {
-				setFanModeHandler(0, 1, { fabric: { index: 1 } });
-				await new Promise((resolve) => setTimeout(resolve, 50));
-			}
-
-			// Assert
-			expect(vi.mocked(localApiClient.sendCommand)).toHaveBeenCalledWith('device-123', {
-				dataKey: 'airState.windStrength',
-				dataValue: THINQ_FAN_SPEED_AUTO,
-			});
-		});
-
 		it('should map Low mode to windStrength 2', async () => {
 			// Arrange
 			mockApiClient = createMockApiClient();
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const setFanModeHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'fanMode',
-			)?.[2] as Function | undefined;
+			const setFanModeHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'fanMode')?.[2] as ((...args: any[]) => any) | undefined;
 
 			// Act - FanControl.FanMode.Low = 1
 			if (setFanModeHandler) {
@@ -570,9 +537,9 @@ describe('registerAirConditionerCommandHandlers', () => {
 			// Arrange
 			mockApiClient = createMockApiClient();
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const setFanModeHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'fanMode',
-			)?.[2] as Function | undefined;
+			const setFanModeHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'fanMode')?.[2] as ((...args: any[]) => any) | undefined;
 
 			// Act - FanControl.FanMode.Medium = 2
 			if (setFanModeHandler) {
@@ -591,9 +558,9 @@ describe('registerAirConditionerCommandHandlers', () => {
 			// Arrange
 			mockApiClient = createMockApiClient();
 			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, capabilities);
-			const setFanModeHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'fanMode',
-			)?.[2] as Function | undefined;
+			const setFanModeHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'fanMode')?.[2] as ((...args: any[]) => any) | undefined;
 
 			// Act - FanControl.FanMode.High = 3
 			if (setFanModeHandler) {
@@ -608,48 +575,16 @@ describe('registerAirConditionerCommandHandlers', () => {
 			});
 		});
 
-		it('should not send command when fanMode is Off', () => {
-			// Arrange
-			const localEndpoint = {
-				log: mockLogger,
-				addCommandHandler: vi.fn().mockReturnValue(mockEndpoint),
-				subscribeAttribute: vi.fn().mockReturnValue(mockEndpoint),
-				updateAttribute: vi.fn().mockResolvedValue(false),
-			} as unknown as MatterbridgeEndpoint;
-			const localApiClient = createMockApiClient();
-			const localMockLogger = createMockLogger();
-			registerAirConditionerCommandHandlers(localEndpoint, mockDevice, localApiClient, localMockLogger, capabilities);
-			const setFanModeHandler = vi.mocked(localEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'fanMode',
-			)?.[2] as Function | undefined;
-			const sendCommandSpy = vi.mocked(localApiClient.sendCommand);
-
-			// Act - FanControl.FanMode.Off = 4
-			if (setFanModeHandler) {
-				setFanModeHandler(4, 0, { fabric: { index: 1 } });
-			}
-
-			// Assert
-			expect(sendCommandSpy).not.toHaveBeenCalled();
-			expect(localMockLogger.debug).toHaveBeenCalledWith(expect.stringContaining('ignoring fanMode=Off'));
-		});
-
 		it('should not send when supportsFanSpeedControl is false', () => {
 			// Arrange
 			const noFanCapabilities: AirConditionerCapabilities = {
 				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
 				supportsFanSpeedControl: false,
 			};
-			registerAirConditionerCommandHandlers(
-				mockEndpoint,
-				mockDevice,
-				mockApiClient,
-				mockLogger,
-				noFanCapabilities,
-			);
-			const setFanModeHandler = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls.find(
-				(call: any[]) => call[1] === 'fanMode',
-			)?.[2] as Function | undefined;
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, noFanCapabilities);
+			const setFanModeHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'fanMode')?.[2] as ((...args: any[]) => any) | undefined;
 			const sendCommandSpy = vi.mocked(mockApiClient.sendCommand);
 
 			// Act

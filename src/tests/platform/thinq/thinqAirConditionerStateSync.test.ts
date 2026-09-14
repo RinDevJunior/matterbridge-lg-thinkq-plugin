@@ -1,13 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { OnOff, TemperatureMeasurement, Thermostat, FanControl } from 'matterbridge/matter/clusters';
+import { FanControl, OnOff, TemperatureMeasurement, Thermostat } from 'matterbridge/matter/clusters';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ThinqSnapshot } from '../../../core/domain/value-objects/ThinqSnapshot.js';
 import type { AirConditionerCapabilities } from '../../../core/domain/value-objects/AirConditionerCapabilities.js';
 import { DEFAULT_AIR_CONDITIONER_CAPABILITIES } from '../../../core/domain/value-objects/AirConditionerCapabilities.js';
+import { ThinqSnapshot } from '../../../core/domain/value-objects/ThinqSnapshot.js';
 import {
 	applyThinqSnapshotToAirConditioner,
-	mapWindStrengthToPercent,
 	mapOperationModeToSystemMode,
+	mapWindStrengthToPercent,
 } from '../../../platform/thinq/thinqAirConditionerStateSync.js';
 import { createMockLogger } from '../../helpers/testUtils.js';
 
@@ -54,7 +54,12 @@ describe('applyThinqSnapshotToAirConditioner', () => {
 		expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'localTemperature', 2200, mockLogger);
 		expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'occupiedCoolingSetpoint', 2400, mockLogger);
 		expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'occupiedHeatingSetpoint', 2400, mockLogger);
-		expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'systemMode', Thermostat.SystemMode.Cool, mockLogger);
+		expect(updateAttributeSpy).toHaveBeenCalledWith(
+			Thermostat.id,
+			'systemMode',
+			Thermostat.SystemMode.Cool,
+			mockLogger,
+		);
 		expect(updateAttributeSpy).toHaveBeenCalledWith(FanControl.id, 'fanMode', FanControl.FanMode.Low, mockLogger);
 		expect(updateAttributeSpy).toHaveBeenCalledWith(FanControl.id, 'percentCurrent', 20, mockLogger);
 	});
@@ -119,12 +124,8 @@ describe('applyThinqSnapshotToAirConditioner', () => {
 
 		// Assert
 		const calls = updateAttributeSpy.mock.calls;
-		const hasCoolingSetpoint = calls.some(
-			(call) => call[0] === Thermostat.id && call[1] === 'occupiedCoolingSetpoint',
-		);
-		const hasHeatingSetpoint = calls.some(
-			(call) => call[0] === Thermostat.id && call[1] === 'occupiedHeatingSetpoint',
-		);
+		const hasCoolingSetpoint = calls.some((call) => call[0] === Thermostat.id && call[1] === 'occupiedCoolingSetpoint');
+		const hasHeatingSetpoint = calls.some((call) => call[0] === Thermostat.id && call[1] === 'occupiedHeatingSetpoint');
 
 		expect(hasCoolingSetpoint).toBe(false);
 		expect(hasHeatingSetpoint).toBe(false);
@@ -152,9 +153,7 @@ describe('applyThinqSnapshotToAirConditioner', () => {
 
 		// Assert
 		const calls = updateAttributeSpy.mock.calls;
-		const hasHeatingSetpoint = calls.some(
-			(call) => call[0] === Thermostat.id && call[1] === 'occupiedHeatingSetpoint',
-		);
+		const hasHeatingSetpoint = calls.some((call) => call[0] === Thermostat.id && call[1] === 'occupiedHeatingSetpoint');
 
 		expect(hasHeatingSetpoint).toBe(false);
 	});
