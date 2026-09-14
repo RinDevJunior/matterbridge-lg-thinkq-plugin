@@ -1,0 +1,103 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [created]
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # needed for npm trusted publishing (OIDC)
+  actions: read
+
+jobs:
+  publish-release:
+    name: Publish release to npm
+    if: github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js 24.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: npm
+
+      - name: Verify Node.js version
+        run: node -v
+
+      - name: Verify Npm version
+        run: npm -v
+
+      - name: Clone matterbridge repo branch main
+        run: npm run precondition
+
+      - name: Install plugin dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: Link matterbridge in the project
+        run: npm link matterbridge --no-fund --no-audit
+
+      - name: Build the plugin
+        run: npm run build
+
+      - name: Lint the plugin
+        run: npm run lint
+
+      - name: Test the plugin
+        run: npm run test
+
+      - name: Publish to npm with trusted publishing / OIDC
+        run: npm publish --provenance --access public --tag latest
+
+  publish-release-candidate:
+    name: Publish release candidate to npm
+    if: github.event.release.prerelease == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Setup Node.js 24.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: npm
+
+      - name: Verify Node.js version
+        run: node -v
+
+      - name: Verify Npm version
+        run: npm -v
+
+      - name: Install matterbridge
+        run: npm run precondition
+
+      - name: Install plugin dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: Link matterbridge in the project
+        run: npm link matterbridge --no-fund --no-audit
+
+      - name: Build the plugin
+        run: npm run build
+
+      - name: Lint the plugin
+        run: npm run lint
+
+      - name: Test the plugin
+        run: npm run test
+
+      - name: Publish to npm with trusted publishing / OIDC
+        run: npm publish --provenance --access public --tag dev
