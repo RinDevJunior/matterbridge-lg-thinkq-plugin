@@ -12,6 +12,7 @@ export type ThinqDeviceUpdateListener = (deviceId: string, snapshot: ThinqSnapsh
  */
 export class ThinqDeviceService {
 	private pollTimer: NodeJS.Timeout | undefined;
+	private pollTickCount = 0;
 
 	constructor(
 		private readonly apiClient: ThinqApiClient,
@@ -27,6 +28,8 @@ export class ThinqDeviceService {
 
 	public startPolling(intervalMs: number, onUpdate: ThinqDeviceUpdateListener): void {
 		this.stopPolling();
+		this.pollTickCount = 0;
+		this.logger.debug(`ThinQ polling: starting with interval=${intervalMs}ms`);
 		this.pollTimer = setInterval(() => {
 			void this.pollOnce(onUpdate);
 		}, intervalMs);
@@ -36,10 +39,13 @@ export class ThinqDeviceService {
 		if (this.pollTimer) {
 			clearInterval(this.pollTimer);
 			this.pollTimer = undefined;
+			this.logger.debug(`ThinQ polling: stopped after ${this.pollTickCount} tick(s)`);
 		}
 	}
 
 	private async pollOnce(onUpdate: ThinqDeviceUpdateListener): Promise<void> {
+		this.pollTickCount += 1;
+		this.logger.debug(`ThinQ polling: tick #${this.pollTickCount} at ${new Date().toISOString()}`);
 		try {
 			const devices = await this.discoverDevices();
 			for (const device of devices) {

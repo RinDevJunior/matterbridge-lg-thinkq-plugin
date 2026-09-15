@@ -51,6 +51,7 @@ export class ThinqDeviceConfigurator {
 		const targetTemperature = snapshot.targetTemperatureCelsius ?? DEFAULT_TEMPERATURE_CELSIUS;
 		const capabilities = this.configManager.getDeviceCapabilities(device.id);
 
+		this.logger.debug(`registerAirConditioner: entry for deviceId=${device.id}`);
 		this.logger.info(`Registering ThinQ AirConditioner: ${device.name} (${device.id})`);
 
 		const initialFanMode = capabilities.supportsFanSpeedControl
@@ -78,6 +79,7 @@ export class ThinqDeviceConfigurator {
 
 		registerAirConditionerCommandHandlers(airConditioner, device, this.apiClient, this.logger, capabilities);
 
+		this.logger.debug(`registerAirConditioner: completed for deviceId=${device.id}`);
 		return Promise.resolve(airConditioner);
 	}
 }
