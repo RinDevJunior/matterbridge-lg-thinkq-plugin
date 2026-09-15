@@ -26,6 +26,7 @@ ${b}Options:${r}
 
 ${b}Commands:${r}
 ${row('login', '', 'Authenticate with LG ThinQ')}
+${row('devices', '', 'List all discovered ThinQ devices (requires a prior login)')}
 ${row('help', '', 'Show this help message')}
 
 ${b}Examples:${r}
@@ -33,4 +34,5 @@ ${b}Examples:${r}
   npm run cli -- --command ${g}login${r}
   npm run cli -- --command ${g}login${r} --type account --country US --language en-US
   npm run cli -- --command ${g}login${r} --type token
+  npm run cli -- --command ${g}devices${r}
 `;

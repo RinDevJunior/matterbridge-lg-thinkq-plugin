@@ -1,7 +1,9 @@
 import { AnsiLogger, LogLevel } from 'matterbridge/logger';
 
+import { cmdDevices } from './commands/devices.js';
 import { cmdLogin } from './commands/login.js';
 import { HELP_TEXT } from './help.js';
+import { loadSession } from './session.js';
 import { parseArgs } from './utils.js';
 
 export async function main(): Promise<void> {
@@ -24,6 +26,18 @@ export async function main(): Promise<void> {
 			const language = args['language'] || 'en-US';
 
 			await cmdLogin(type, country, language, logger);
+			return;
+		}
+
+		if (command === 'devices') {
+			const session = loadSession();
+			if (!session) {
+				console.error('No session found. Run `--command login` first.');
+				process.exitCode = 1;
+				return;
+			}
+
+			await cmdDevices(session, logger);
 			return;
 		}
 
