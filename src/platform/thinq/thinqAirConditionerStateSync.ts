@@ -74,6 +74,21 @@ export async function applyThinqSnapshotToAirConditioner(
 	capabilities: AirConditionerCapabilities,
 	logger: AnsiLogger,
 ): Promise<void> {
+	const deviceId = airConditioner.serialNumber ?? airConditioner.uniqueId ?? 'unknown';
+	const attributesToPush = ['power', 'systemMode'];
+	if (snapshot.currentTemperatureCelsius !== undefined) {
+		attributesToPush.push('currentTemp');
+	}
+	if (snapshot.targetTemperatureCelsius !== undefined) {
+		attributesToPush.push('targetTemp');
+	}
+	if (capabilities.supportsFanSpeedControl || snapshot.windStrength !== undefined) {
+		attributesToPush.push('fanSpeed');
+	}
+	logger.debug(
+		`applyThinqSnapshotToAirConditioner: entry for deviceId=${deviceId}, pushing ${attributesToPush.length} attributes: ${attributesToPush.join(', ')}`,
+	);
+
 	await airConditioner.updateAttribute(OnOff.id, 'onOff', snapshot.isPowerOn, logger);
 
 	const currentTemperatureCelsius = snapshot.currentTemperatureCelsius;

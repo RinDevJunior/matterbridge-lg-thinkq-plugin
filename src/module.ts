@@ -65,6 +65,7 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 
 	// #region Lifecycle
 	public override async onStart(reason?: string): Promise<void> {
+		this.log.debug(`onStart: entry (reason=${reason ?? 'none'})`);
 		this.log.notice('onStart called with reason:', reason ?? 'none');
 
 		await this.ready;
@@ -72,12 +73,14 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 		await this.persist.init();
 
 		if (this.configManager.isClearStorageOnStartupEnabled) {
+			this.log.debug('onStart: exit early — clear-storage-on-startup enabled, skipping device startup');
 			return;
 		}
 
 		if (!this.configManager.validateConfig()) {
 			this.log.error('Platform configuration is invalid.');
 			this.state.setStartupCompleted(false);
+			this.log.debug('onStart: exit — invalid platform configuration');
 			return;
 		}
 
@@ -86,15 +89,18 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 		} catch (error) {
 			this.log.error(`ThinQ startup failed: ${error instanceof Error ? error.message : String(error)}`);
 			this.state.setStartupCompleted(false);
+			this.log.debug('onStart: exit — ThinQ startup threw');
 			return;
 		}
 
 		this.log.notice('onStart finished');
 		this.state.setStartupCompleted(true);
+		this.log.debug('onStart: exit — startup completed successfully');
 	}
 
 	public override async onConfigure(): Promise<void> {
 		await super.onConfigure();
+		this.log.debug('onConfigure: entry');
 		this.log.notice('onConfigure called');
 
 		if (this.configManager.isClearStorageOnStartupEnabled) {
@@ -109,10 +115,12 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 				.catch((error: unknown) => {
 					this.log.error(`Error clearing persistence storage: ${error}`);
 				});
+			this.log.debug('onConfigure: exit early — clear-storage-on-startup enabled');
 			return;
 		}
 
 		if (!this.state.isStartupCompleted) {
+			this.log.debug('onConfigure: exit early — startup did not complete, skipping polling setup');
 			return;
 		}
 
@@ -134,10 +142,12 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 				);
 			});
 		});
+		this.log.debug(`onConfigure: exit — polling started at ${this.thinqPollingIntervalMs}ms interval`);
 	}
 
 	public override async onShutdown(reason?: string): Promise<void> {
 		await super.onShutdown(reason);
+		this.log.debug(`onShutdown: entry (reason=${reason ?? 'none'})`);
 		this.log.notice('onShutdown called with reason:', reason ?? 'none');
 
 		this.thinqServices.getDeviceService().stopPolling();
@@ -147,6 +157,7 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 		}
 
 		this.state.setStartupCompleted(false);
+		this.log.debug('onShutdown: exit');
 	}
 
 	/**

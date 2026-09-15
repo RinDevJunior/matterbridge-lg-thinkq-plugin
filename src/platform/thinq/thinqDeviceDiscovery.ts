@@ -17,6 +17,7 @@ export class ThinqDeviceDiscovery {
 
 	public async discoverDevices(): Promise<ThinqDevice[]> {
 		const devices = await this.deviceService.discoverDevices();
+		this.logger.debug(`ThinQ discoverDevices: ${devices.length} raw device(s) returned before filtering`);
 		const supported: ThinqDevice[] = [];
 
 		for (const device of devices) {
@@ -29,6 +30,7 @@ export class ThinqDeviceDiscovery {
 			this.logger.info(`ThinQ device type not supported, skipping: ${device.type} (${device.id})`);
 		}
 
+		this.logger.debug(`ThinQ discoverDevices: ${supported.length} device(s) supported after filtering`);
 		return supported;
 	}
 
