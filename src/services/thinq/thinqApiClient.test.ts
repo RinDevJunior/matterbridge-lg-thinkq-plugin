@@ -265,4 +265,158 @@ describe('ThinqApiClient', () => {
 			expect(mockAxios.history.get.filter((h) => h.url?.includes('/service/homes'))).toHaveLength(1);
 		});
 	});
+
+	describe('getMqttRouteInfo', () => {
+		it('should fetch MQTT route info from the correct URL', async () => {
+			const mqttRouteInfo = { mqttServer: 'mqtt.example.com:8883' };
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+			mockAxios
+				.onGet('https://common.lgthinq.com/route')
+				.reply(200, { result: mqttRouteInfo });
+
+			const result = await apiClient.getMqttRouteInfo();
+
+			expect(result).toEqual(mqttRouteInfo);
+		});
+
+		it('should include auth headers in the request', async () => {
+			apiClient.setUserNumber('user-123');
+			const mqttRouteInfo = { mqttServer: 'mqtt.example.com:8883' };
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+			mockAxios
+				.onGet('https://common.lgthinq.com/route')
+				.reply(200, { result: mqttRouteInfo });
+
+			await apiClient.getMqttRouteInfo();
+
+			const request = mockAxios.history.get.find((h) => h.url?.includes('common.lgthinq.com'));
+			expect(request?.headers?.['x-api-key']).toBeDefined();
+			expect(request?.headers?.['x-emp-token']).toBe('access-token-123');
+		});
+	});
+
+	describe('registerMqttClient', () => {
+		it('should register MQTT client with empty body', async () => {
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+			mockAxios
+				.onPost(`${gatewayData.thinq2Uri}/service/users/client`)
+				.reply(200, { result: {} });
+
+			await apiClient.registerMqttClient();
+
+			const request = mockAxios.history.post.find((h) => h.url?.includes('/service/users/client'));
+			expect(JSON.parse(request?.data as string)).toEqual({});
+		});
+
+		it('should include auth headers in the request', async () => {
+			apiClient.setUserNumber('user-123');
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+			mockAxios
+				.onPost(`${gatewayData.thinq2Uri}/service/users/client`)
+				.reply(200, { result: {} });
+
+			await apiClient.registerMqttClient();
+
+			const request = mockAxios.history.post.find((h) => h.url?.includes('/service/users/client'));
+			expect(request?.headers?.['x-api-key']).toBeDefined();
+			expect(request?.headers?.['x-emp-token']).toBe('access-token-123');
+		});
+	});
+
+	describe('requestMqttCertificate', () => {
+		it('should request certificate with CSR body', async () => {
+			const csrBody = 'MIICpDCCAYwCAQAwEzERMA8GA1UEAwwIVGVzdCBDU1I=';
+			const certificateResponse = {
+				certificatePem: 'cert-pem-data',
+				subscriptions: ['topic/1', 'topic/2'],
+			};
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+			mockAxios
+				.onPost(`${gatewayData.thinq2Uri}/service/users/client/certificate`)
+				.reply(200, { result: certificateResponse });
+
+			const result = await apiClient.requestMqttCertificate(csrBody);
+
+			expect(result).toEqual(certificateResponse);
+		});
+
+		it('should send CSR body in correct format', async () => {
+			const csrBody = 'MIICpDCCAYwCAQAwEzERMA8GA1UEAwwIVGVzdCBDU1I=';
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+			mockAxios
+				.onPost(`${gatewayData.thinq2Uri}/service/users/client/certificate`)
+				.reply(200, { result: { certificatePem: 'cert', subscriptions: [] } });
+
+			await apiClient.requestMqttCertificate(csrBody);
+
+			const request = mockAxios.history.post.find((h) =>
+				h.url?.includes('/service/users/client/certificate')
+			);
+			expect(JSON.parse(request?.data as string)).toEqual({ csr: csrBody });
+		});
+
+		it('should include auth headers in the request', async () => {
+			apiClient.setUserNumber('user-123');
+			const csrBody = 'test-csr';
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+			mockAxios
+				.onPost(`${gatewayData.thinq2Uri}/service/users/client/certificate`)
+				.reply(200, { result: { certificatePem: 'cert', subscriptions: [] } });
+
+			await apiClient.requestMqttCertificate(csrBody);
+
+			const request = mockAxios.history.post.find((h) =>
+				h.url?.includes('/service/users/client/certificate')
+			);
+			expect(request?.headers?.['x-api-key']).toBeDefined();
+			expect(request?.headers?.['x-emp-token']).toBe('access-token-123');
+		});
+	});
+
+	describe('getClientId', () => {
+		it('should return fallback API_CLIENT_ID when userNumber not set', () => {
+			const clientId = apiClient.getClientId();
+
+			expect(clientId).toBe('c713ea8e50f657534ff8b9d373dfebfc2ed70b88285c26b8ade49868c0b164d9');
+		});
+
+		it('should return computed clientId after setUserNumber', () => {
+			apiClient.setUserNumber('user-123');
+
+			const clientId = apiClient.getClientId();
+
+			expect(clientId).not.toBe('c713ea8e50f657534ff8b9d373dfebfc2ed70b88285c26b8ade49868c0b164d9');
+			expect(clientId).toBeDefined();
+		});
+
+		it('should return same value as x-client-id header after setUserNumber', async () => {
+			apiClient.setUserNumber('user-123');
+			const clientId = apiClient.getClientId();
+
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+			mockAxios.onGet(`${gatewayData.thinq2Uri}/service/homes`).reply(200, { result: { item: [] } });
+
+			// Call an API method to get the headers
+			await apiClient.getListHomes();
+
+			const request = mockAxios.history.get.find((h) => h.url?.includes('/service/homes'));
+			expect(request?.headers?.['x-client-id']).toBe(clientId);
+		});
+	});
 });
