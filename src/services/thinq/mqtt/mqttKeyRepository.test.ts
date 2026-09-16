@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type NodePersist from 'node-persist';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { asPartial, createMockLogger } from '../../../tests/helpers/testUtils.js';
 import { MqttKeyRepository } from './mqttKeyRepository.js';
@@ -42,7 +42,8 @@ describe('MqttKeyRepository', () => {
 
 		it('should generate and cache new key pair when cache is empty', async () => {
 			vi.mocked(mockPersist.getItem).mockResolvedValue(undefined);
-			vi.mocked(mockPersist.setItem).mockResolvedValue(undefined);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(vi.mocked(mockPersist.setItem) as any).mockImplementation(() => Promise.resolve());
 
 			const result = await repository.getOrCreateKeyPair();
 
@@ -56,14 +57,18 @@ describe('MqttKeyRepository', () => {
 
 		it('should persist the generated key pair', async () => {
 			vi.mocked(mockPersist.getItem).mockResolvedValue(undefined);
-			vi.mocked(mockPersist.setItem).mockResolvedValue(undefined);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(vi.mocked(mockPersist.setItem) as any).mockImplementation(() => Promise.resolve());
 
-			const result = await repository.getOrCreateKeyPair();
+			await repository.getOrCreateKeyPair();
 
-			expect(mockPersist.setItem).toHaveBeenCalledWith('thinq:mqtt:keyPair', expect.objectContaining({
-				privateKey: expect.stringContaining('PRIVATE KEY'),
-				publicKey: expect.stringContaining('PUBLIC KEY'),
-			}));
+			expect(mockPersist.setItem).toHaveBeenCalledWith(
+				'thinq:mqtt:keyPair',
+				expect.objectContaining({
+					privateKey: expect.stringContaining('PRIVATE KEY'),
+					publicKey: expect.stringContaining('PUBLIC KEY'),
+				}),
+			);
 		});
 
 		it('should return the same instance on repeated calls', async () => {
@@ -84,7 +89,8 @@ describe('MqttKeyRepository', () => {
 
 		it('should generate keys with RSA format', async () => {
 			vi.mocked(mockPersist.getItem).mockResolvedValue(undefined);
-			vi.mocked(mockPersist.setItem).mockResolvedValue(undefined);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(vi.mocked(mockPersist.setItem) as any).mockImplementation(() => Promise.resolve());
 
 			const result = await repository.getOrCreateKeyPair();
 
@@ -110,7 +116,8 @@ describe('MqttKeyRepository', () => {
 
 		it('should generate and cache new CSR when cache is empty', async () => {
 			vi.mocked(mockPersist.getItem).mockResolvedValue(undefined);
-			vi.mocked(mockPersist.setItem).mockResolvedValue(undefined);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(vi.mocked(mockPersist.setItem) as any).mockImplementation(() => Promise.resolve());
 
 			// Use the actual generateMqttKeyPair to create valid keys
 			const { generateMqttKeyPair } = await import('./mqttCertificate.js');
@@ -140,14 +147,18 @@ describe('MqttKeyRepository', () => {
 
 		it('should store CSR under correct storage key', async () => {
 			vi.mocked(mockPersist.getItem).mockResolvedValue(undefined);
-			vi.mocked(mockPersist.setItem).mockResolvedValue(undefined);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(vi.mocked(mockPersist.setItem) as any).mockImplementation(() => Promise.resolve());
 
 			const { generateMqttKeyPair } = await import('./mqttCertificate.js');
 			const keyPair = generateMqttKeyPair();
 
 			await repository.getOrCreateCsr(keyPair);
 
-			expect(mockPersist.setItem).toHaveBeenCalledWith('thinq:mqtt:csr', expect.stringContaining('BEGIN CERTIFICATE REQUEST'));
+			expect(mockPersist.setItem).toHaveBeenCalledWith(
+				'thinq:mqtt:csr',
+				expect.stringContaining('BEGIN CERTIFICATE REQUEST'),
+			);
 		});
 	});
 });

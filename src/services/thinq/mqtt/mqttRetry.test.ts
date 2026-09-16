@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { asPartial, createMockLogger } from '../../../tests/helpers/testUtils.js';
-import { MQTT_RETRY_ATTEMPTS, MQTT_RETRY_DELAY_MS, delayMs, retryMqttRegistration } from './mqttRetry.js';
+import { createMockLogger } from '../../../tests/helpers/testUtils.js';
+import { delayMs, MQTT_RETRY_ATTEMPTS, MQTT_RETRY_DELAY_MS, retryMqttRegistration } from './mqttRetry.js';
 
 describe('mqttRetry', () => {
 	let mockLogger: ReturnType<typeof createMockLogger>;
@@ -74,7 +74,8 @@ describe('mqttRetry', () => {
 		});
 
 		it('should return true when register succeeds on the 3rd attempt', async () => {
-			const register = vi.fn()
+			const register = vi
+				.fn()
 				.mockRejectedValueOnce(new Error('Attempt 1 failed'))
 				.mockRejectedValueOnce(new Error('Attempt 2 failed'))
 				.mockResolvedValueOnce(undefined);
@@ -124,9 +125,7 @@ describe('mqttRetry', () => {
 		});
 
 		it('should use provided delay function', async () => {
-			const register = vi.fn()
-				.mockRejectedValueOnce(new Error('Attempt 1 failed'))
-				.mockResolvedValueOnce(undefined);
+			const register = vi.fn().mockRejectedValueOnce(new Error('Attempt 1 failed')).mockResolvedValueOnce(undefined);
 			const delay = vi.fn().mockResolvedValue(undefined);
 
 			const result = await retryMqttRegistration({
@@ -140,9 +139,7 @@ describe('mqttRetry', () => {
 		});
 
 		it('should use default delayMs when delay function not provided', async () => {
-			const register = vi.fn()
-				.mockRejectedValueOnce(new Error('Attempt 1 failed'))
-				.mockResolvedValueOnce(undefined);
+			const register = vi.fn().mockRejectedValueOnce(new Error('Attempt 1 failed')).mockResolvedValueOnce(undefined);
 
 			vi.useFakeTimers();
 
@@ -162,7 +159,8 @@ describe('mqttRetry', () => {
 		});
 
 		it('should log debug messages on each retry', async () => {
-			const register = vi.fn()
+			const register = vi
+				.fn()
 				.mockRejectedValueOnce(new Error('Attempt 1 failed'))
 				.mockRejectedValueOnce(new Error('Attempt 2 failed'))
 				.mockResolvedValueOnce(undefined);
@@ -177,9 +175,9 @@ describe('mqttRetry', () => {
 			// Should have debug logs: error message + retry message for each failed attempt before success
 			expect(mockLogger.debug).toHaveBeenCalledWith('Cannot start MQTT, retrying in 5s.');
 			// Two attempts failed, so 2 error messages + 2 retry messages = 4 total debug calls
-			expect(vi.mocked(mockLogger.debug).mock.calls.filter(
-				call => call[0]?.toString().includes('Cannot start MQTT')
-			)).toHaveLength(2);
+			expect(
+				vi.mocked(mockLogger.debug).mock.calls.filter((call) => call[0]?.includes('Cannot start MQTT')),
+			).toHaveLength(2);
 		});
 
 		it('should not call delay after the last failed attempt', async () => {

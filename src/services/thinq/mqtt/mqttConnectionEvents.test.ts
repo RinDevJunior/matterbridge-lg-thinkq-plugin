@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { asPartial, createMockLogger } from '../../../tests/helpers/testUtils.js';
 import {
@@ -17,7 +17,7 @@ describe('mqttConnectionEvents', () => {
 		vi.clearAllMocks();
 		vi.useFakeTimers();
 		deviceHandlers = new Map();
-		mockLogger = createMockLogger() as MqttRuntimeLogger;
+		mockLogger = createMockLogger();
 		mockDevice = asPartial<MqttRuntimeDevice>({
 			on: vi.fn((event: string, handler: unknown) => {
 				if (!deviceHandlers.has(event)) {
@@ -38,7 +38,10 @@ describe('mqttConnectionEvents', () => {
 
 	describe('wireMqttDeviceEvents', () => {
 		it('should subscribe to all topics on connect event', () => {
-			const subscriptions = ['$aws/things/device1/shadow/update/accepted', '$aws/things/device1/shadow/update/rejected'];
+			const subscriptions = [
+				'$aws/things/device1/shadow/update/accepted',
+				'$aws/things/device1/shadow/update/rejected',
+			];
 			const onMessage = vi.fn();
 			const reconnect = vi.fn();
 
@@ -51,7 +54,7 @@ describe('mqttConnectionEvents', () => {
 				reconnect,
 			});
 
-			const connectHandlers = deviceHandlers.get('connect') as ((this: void) => void)[];
+			const connectHandlers = deviceHandlers.get('connect') as (() => void)[];
 			expect(connectHandlers).toBeDefined();
 			connectHandlers[0]();
 
@@ -73,7 +76,7 @@ describe('mqttConnectionEvents', () => {
 				reconnect,
 			});
 
-			const connectHandlers = deviceHandlers.get('connect') as ((this: void) => void)[];
+			const connectHandlers = deviceHandlers.get('connect') as (() => void)[];
 			connectHandlers[0]();
 
 			expect(mockLogger.info).toHaveBeenCalledWith('Successfully connected to the MQTT server.');
@@ -175,7 +178,7 @@ describe('mqttConnectionEvents', () => {
 				reconnect,
 			});
 
-			const offlineHandlers = deviceHandlers.get('offline') as ((this: void) => void)[];
+			const offlineHandlers = deviceHandlers.get('offline') as (() => void)[];
 			offlineHandlers[0]();
 
 			expect(mockDevice.end).toHaveBeenCalled();
@@ -201,7 +204,7 @@ describe('mqttConnectionEvents', () => {
 				reconnect,
 			});
 
-			const offlineHandlers = deviceHandlers.get('offline') as ((this: void) => void)[];
+			const offlineHandlers = deviceHandlers.get('offline') as (() => void)[];
 			offlineHandlers[0]();
 
 			await vi.advanceTimersByTimeAsync(MQTT_OFFLINE_RECONNECT_DELAY_MS);
@@ -224,7 +227,7 @@ describe('mqttConnectionEvents', () => {
 				scheduleReconnect: customScheduleReconnect,
 			});
 
-			const offlineHandlers = deviceHandlers.get('offline') as ((this: void) => void)[];
+			const offlineHandlers = deviceHandlers.get('offline') as (() => void)[];
 			offlineHandlers[0]();
 
 			expect(customScheduleReconnect).toHaveBeenCalledWith(expect.any(Function), MQTT_OFFLINE_RECONNECT_DELAY_MS);
@@ -233,7 +236,7 @@ describe('mqttConnectionEvents', () => {
 		it('should call custom scheduleReconnect with the correct handler and delay', async () => {
 			const onMessage = vi.fn();
 			const reconnect = vi.fn().mockResolvedValue(undefined);
-			let capturedHandler: (() => void) | undefined;
+			let capturedHandler: (() => Promise<void> | void) | undefined;
 			const customScheduleReconnect = vi.fn((handler) => {
 				capturedHandler = handler;
 			});
@@ -248,14 +251,17 @@ describe('mqttConnectionEvents', () => {
 				scheduleReconnect: customScheduleReconnect,
 			});
 
-			const offlineHandlers = deviceHandlers.get('offline') as ((this: void) => void)[];
+			const offlineHandlers = deviceHandlers.get('offline') as (() => void)[];
 			offlineHandlers[0]();
 
 			expect(customScheduleReconnect).toHaveBeenCalledWith(expect.any(Function), MQTT_OFFLINE_RECONNECT_DELAY_MS);
 
 			// Manually call the captured handler
 			if (capturedHandler) {
-				await capturedHandler();
+				const result = capturedHandler();
+				if (result instanceof Promise) {
+					await result;
+				}
 			}
 
 			expect(reconnect).toHaveBeenCalled();

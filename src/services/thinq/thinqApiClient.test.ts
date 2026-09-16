@@ -272,9 +272,7 @@ describe('ThinqApiClient', () => {
 			mockAxios
 				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
 				.reply(200, { result: gatewayData });
-			mockAxios
-				.onGet('https://common.lgthinq.com/route')
-				.reply(200, { result: mqttRouteInfo });
+			mockAxios.onGet('https://common.lgthinq.com/route').reply(200, { result: mqttRouteInfo });
 
 			const result = await apiClient.getMqttRouteInfo();
 
@@ -287,9 +285,7 @@ describe('ThinqApiClient', () => {
 			mockAxios
 				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
 				.reply(200, { result: gatewayData });
-			mockAxios
-				.onGet('https://common.lgthinq.com/route')
-				.reply(200, { result: mqttRouteInfo });
+			mockAxios.onGet('https://common.lgthinq.com/route').reply(200, { result: mqttRouteInfo });
 
 			await apiClient.getMqttRouteInfo();
 
@@ -304,9 +300,7 @@ describe('ThinqApiClient', () => {
 			mockAxios
 				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
 				.reply(200, { result: gatewayData });
-			mockAxios
-				.onPost(`${gatewayData.thinq2Uri}/service/users/client`)
-				.reply(200, { result: {} });
+			mockAxios.onPost(`${gatewayData.thinq2Uri}/service/users/client`).reply(200, { result: {} });
 
 			await apiClient.registerMqttClient();
 
@@ -319,9 +313,7 @@ describe('ThinqApiClient', () => {
 			mockAxios
 				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
 				.reply(200, { result: gatewayData });
-			mockAxios
-				.onPost(`${gatewayData.thinq2Uri}/service/users/client`)
-				.reply(200, { result: {} });
+			mockAxios.onPost(`${gatewayData.thinq2Uri}/service/users/client`).reply(200, { result: {} });
 
 			await apiClient.registerMqttClient();
 
@@ -361,9 +353,7 @@ describe('ThinqApiClient', () => {
 
 			await apiClient.requestMqttCertificate(csrBody);
 
-			const request = mockAxios.history.post.find((h) =>
-				h.url?.includes('/service/users/client/certificate')
-			);
+			const request = mockAxios.history.post.find((h) => h.url?.includes('/service/users/client/certificate'));
 			expect(JSON.parse(request?.data as string)).toEqual({ csr: csrBody });
 		});
 
@@ -379,9 +369,7 @@ describe('ThinqApiClient', () => {
 
 			await apiClient.requestMqttCertificate(csrBody);
 
-			const request = mockAxios.history.post.find((h) =>
-				h.url?.includes('/service/users/client/certificate')
-			);
+			const request = mockAxios.history.post.find((h) => h.url?.includes('/service/users/client/certificate'));
 			expect(request?.headers?.['x-api-key']).toBeDefined();
 			expect(request?.headers?.['x-emp-token']).toBe('access-token-123');
 		});

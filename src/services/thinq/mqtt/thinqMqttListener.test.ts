@@ -1,14 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { asPartial, createMockLogger } from '../../../tests/helpers/testUtils.js';
 import { ThinqSnapshot } from '../../../core/domain/value-objects/ThinqSnapshot.js';
+import { asPartial, createMockLogger } from '../../../tests/helpers/testUtils.js';
 import type { ThinqApiClient } from '../thinqApiClient.js';
-import { ThinqMqttListener } from './thinqMqttListener.js';
 import type { MqttKeyRepository } from './mqttKeyRepository.js';
+import { ThinqMqttListener } from './thinqMqttListener.js';
 
 // Mock aws-iot-device-sdk
 const mockMqttDevice = {
-	on: vi.fn((event: string, handler: unknown) => {}),
+	on: vi.fn((event: string, handler: unknown) => {
+		// Handler registration (no-op)
+	}),
 	subscribe: vi.fn(),
 	end: vi.fn(),
 };
@@ -84,6 +86,8 @@ describe('ThinqMqttListener', () => {
 		it('should call device end if device exists', () => {
 			const mockEnd = vi.fn();
 			listener['device'] = asPartial({
+				on: vi.fn(),
+				subscribe: vi.fn(),
 				end: mockEnd,
 			});
 
@@ -106,7 +110,7 @@ describe('ThinqMqttListener', () => {
 					deviceId: 'device-123',
 					data: { state: { reported: { 'airState.operation': 1 } } },
 				},
-				onUpdate
+				onUpdate,
 			);
 
 			expect(onUpdate).toHaveBeenCalledWith('device-123', expect.any(ThinqSnapshot));
@@ -117,7 +121,7 @@ describe('ThinqMqttListener', () => {
 				{
 					data: { state: { reported: { 'airState.operation': 1 } } },
 				},
-				onUpdate
+				onUpdate,
 			);
 
 			expect(onUpdate).not.toHaveBeenCalled();
@@ -129,7 +133,7 @@ describe('ThinqMqttListener', () => {
 				{
 					deviceId: 'device-123',
 				},
-				onUpdate
+				onUpdate,
 			);
 
 			expect(onUpdate).not.toHaveBeenCalled();
@@ -141,7 +145,7 @@ describe('ThinqMqttListener', () => {
 					deviceId: 'device-123',
 					data: { state: {} },
 				},
-				onUpdate
+				onUpdate,
 			);
 
 			expect(onUpdate).not.toHaveBeenCalled();
@@ -167,7 +171,7 @@ describe('ThinqMqttListener', () => {
 					deviceId: 'device-123',
 					data: { state: { reported: reportedData } },
 				},
-				onUpdate
+				onUpdate,
 			);
 
 			const call = vi.mocked(onUpdate).mock.calls[0];
@@ -181,7 +185,7 @@ describe('ThinqMqttListener', () => {
 					deviceId: 123,
 					data: { state: { reported: { 'airState.operation': 1 } } },
 				},
-				onUpdate
+				onUpdate,
 			);
 
 			expect(onUpdate).not.toHaveBeenCalled();
@@ -193,7 +197,7 @@ describe('ThinqMqttListener', () => {
 					deviceId: 'device-123',
 					data: { state: { reported: 'not an object' } },
 				},
-				onUpdate
+				onUpdate,
 			);
 
 			expect(onUpdate).not.toHaveBeenCalled();
@@ -204,24 +208,19 @@ describe('ThinqMqttListener', () => {
 		it('should not reject when start fails', async () => {
 			vi.mocked(mockApiClient.getMqttRouteInfo).mockRejectedValue(new Error('Network error'));
 
-			// Use useFakeTimers to speed up the retries
+			// Use fake timers to speed up retries
 			vi.useFakeTimers();
-
 			const startPromise = listener.start(vi.fn());
 
-			// Advance through all the retry delays (5 retries * 5s each)
-			for (let i = 0; i < 5; i++) {
-				await vi.advanceTimersByTimeAsync(5000);
-			}
-
-			await startPromise;
+			// Run all pending timers
+			await vi.runAllTimersAsync();
 
 			vi.useRealTimers();
 
+			await startPromise;
+
 			// Should log error about unable to start
-			expect(mockLogger.error).toHaveBeenCalledWith(
-				expect.stringContaining('unable to start after retries')
-			);
+			expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('unable to start after retries'));
 		});
 	});
 });

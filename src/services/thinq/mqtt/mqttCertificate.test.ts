@@ -1,23 +1,23 @@
 import { promises as fs } from 'node:fs';
-import Path from 'node:path';
 import os from 'node:os';
+import Path from 'node:path';
 
 import axios from 'axios';
 import MockAdapter from 'axios-mock-adapter';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
 	ATS_ROOT_CA_URL,
-	LEGACY_ROOT_CA_URL,
-	LG_ROOT_CA_URL,
 	certificateRequestBody,
 	createMqttCsr,
 	downloadRootCa,
 	generateMqttKeyPair,
+	LEGACY_ROOT_CA_URL,
+	LG_ROOT_CA_URL,
 	mqttCertificatePaths,
 	rootCaUrlForMqttHost,
-	writeMqttCertificateFiles,
 	writeIfChanged,
+	writeMqttCertificateFiles,
 } from './mqttCertificate.js';
 
 describe('mqttCertificate', () => {

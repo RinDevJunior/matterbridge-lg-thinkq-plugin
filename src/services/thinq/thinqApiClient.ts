@@ -309,6 +309,12 @@ export class ThinqApiClient {
 				return this.request<T>(method, uri, data, true);
 			}
 
+			if (axios.isAxiosError(error)) {
+				this.logger.debug(
+					`ThinQ request failed <- ${method.toUpperCase()} ${url} status=${error.response?.status} data=${JSON.stringify(error.response?.data)}`,
+				);
+			}
+
 			throw error;
 		}
 	}

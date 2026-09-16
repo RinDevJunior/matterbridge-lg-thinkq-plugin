@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { LocalStorage } from 'node-persist';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { asPartial, createMockLogger } from '../../tests/helpers/testUtils.js';
 import type { PlatformConfigManager } from '../../platform/platformConfigManager.js';
+import { asPartial, createMockLogger } from '../../tests/helpers/testUtils.js';
 import { ThinqServiceContainer } from './serviceContainer.js';
 
 describe('ThinqServiceContainer', () => {
