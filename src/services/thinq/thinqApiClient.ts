@@ -17,6 +17,7 @@ import {
 import { ThinqSession } from './session.js';
 
 const GATEWAY_URL = 'https://route.lgthinq.com:46030/v1/service/application/gateway-uri';
+export const MQTT_ROUTE_URL = 'https://common.lgthinq.com/route';
 const API_KEY = 'VGhpblEyLjAgU0VSVklDRQ==';
 const API_CLIENT_ID = 'c713ea8e50f657534ff8b9d373dfebfc2ed70b88285c26b8ade49868c0b164d9';
 
@@ -225,6 +226,32 @@ export class ThinqApiClient {
 		}
 	}
 
+	/** Fetches the MQTT broker route (`GET https://common.lgthinq.com/route`), first step of MQTT cert setup. */
+	public async getMqttRouteInfo(): Promise<{ mqttServer: string }> {
+		const data = await this.request<{ result: { mqttServer: string } }>('get', MQTT_ROUTE_URL);
+		return data.result;
+	}
+
+	/** Registers this account as an MQTT client (`POST service/users/client`), required before requesting a certificate. */
+	public async registerMqttClient(): Promise<void> {
+		await this.request('post', 'service/users/client', {});
+	}
+
+	/** Submits the CSR body and returns the signed client certificate + broker subscription topics. */
+	public async requestMqttCertificate(csrBody: string): Promise<{ certificatePem: string; subscriptions: string[] }> {
+		const data = await this.request<{ result: { certificatePem: string; subscriptions: string[] } }>(
+			'post',
+			'service/users/client/certificate',
+			{ csr: csrBody },
+		);
+		return data.result;
+	}
+
+	/** Returns the per-session client id (`x-client-id`), falling back to the static default like `defaultHeaders`. */
+	public getClientId(): string {
+		return this.clientId ?? API_CLIENT_ID;
+	}
+
 	private get defaultHeaders(): Record<string, string> {
 		const authHeaders: Record<string, string> = {};
 		if (this.session.accessToken) {
@@ -280,6 +307,12 @@ export class ThinqApiClient {
 
 				await this.refreshToken(this.session);
 				return this.request<T>(method, uri, data, true);
+			}
+
+			if (axios.isAxiosError(error)) {
+				this.logger.debug(
+					`ThinQ request failed <- ${method.toUpperCase()} ${url} status=${error.response?.status} data=${JSON.stringify(error.response?.data)}`,
+				);
 			}
 
 			throw error;

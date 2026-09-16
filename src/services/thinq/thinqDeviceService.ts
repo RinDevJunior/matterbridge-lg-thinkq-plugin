@@ -7,8 +7,9 @@ import { ThinqApiClient } from './thinqApiClient.js';
 export type ThinqDeviceUpdateListener = (deviceId: string, snapshot: ThinqSnapshot) => void;
 
 /**
- * Discovers ThinQ devices and polls their state. Phase 1 is polling-only (no MQTT) — ports
- * `pollThinQ2Devices()`'s full-refetch-per-tick approach (`platformMonitor.ts:104-123`).
+ * Discovers ThinQ devices and polls their state. Polling runs alongside a separate `ThinqMqttListener`
+ * (Phase 4) that pushes the same update shape over MQTT — ports `pollThinQ2Devices()`'s
+ * full-refetch-per-tick approach (`platformMonitor.ts:104-123`).
  */
 export class ThinqDeviceService {
 	private pollTimer: NodeJS.Timeout | undefined;

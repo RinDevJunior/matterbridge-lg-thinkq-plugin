@@ -15,6 +15,7 @@ import { PlatformState } from './platform/platformState.js';
 import { applyThinqSnapshotToAirConditioner } from './platform/thinq/thinqAirConditionerStateSync.js';
 import { ThinqServiceContainer } from './services/thinq/serviceContainer.js';
 import { ThinqSession } from './services/thinq/session.js';
+import { ThinqDeviceUpdateListener } from './services/thinq/thinqDeviceService.js';
 import { PLUGIN_NAME } from './settings.js';
 
 export default function initializePlugin(
@@ -60,7 +61,12 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 		this.configManager = PlatformConfigManager.create(config, this.log);
 		this.registry = new DeviceRegistry();
 		this.state = new PlatformState();
-		this.thinqServices = new ThinqServiceContainer(this.log, this.persist, this.configManager);
+		this.thinqServices = new ThinqServiceContainer(
+			this.log,
+			this.persist,
+			this.configManager,
+			Path.join(persistDir, 'mqtt'),
+		);
 	}
 
 	// #region Lifecycle
@@ -124,8 +130,7 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 			return;
 		}
 
-		this.thinqPollingIntervalMs = this.configManager.thinqRefreshIntervalSeconds * 1000;
-		this.thinqServices.getDeviceService().startPolling(this.thinqPollingIntervalMs, (deviceId, snapshot) => {
+		const applyDeviceUpdate: ThinqDeviceUpdateListener = (deviceId, snapshot) => {
 			const airConditioner = this.registry.getDevice(deviceId) as MatterbridgeEndpoint | undefined;
 			if (!airConditioner) {
 				this.log.debug(`ThinQ device update received for unregistered device ${deviceId}, skipping.`);
@@ -141,7 +146,18 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 					`Failed to apply ThinQ state update for ${deviceId}: ${error instanceof Error ? error.message : String(error)}`,
 				);
 			});
-		});
+		};
+
+		this.thinqPollingIntervalMs = this.configManager.thinqRefreshIntervalSeconds * 1000;
+		this.thinqServices.getDeviceService().startPolling(this.thinqPollingIntervalMs, applyDeviceUpdate);
+		void this.thinqServices
+			.getMqttListener()
+			.start(applyDeviceUpdate)
+			.catch((error: unknown) => {
+				this.log.error(
+					`ThinQ MQTT listener failed to start: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			});
 		this.log.debug(`onConfigure: exit — polling started at ${this.thinqPollingIntervalMs}ms interval`);
 	}
 
@@ -151,6 +167,7 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 		this.log.notice('onShutdown called with reason:', reason ?? 'none');
 
 		this.thinqServices.getDeviceService().stopPolling();
+		this.thinqServices.getMqttListener().stop();
 
 		if (this.configManager.unregisterOnShutdown) {
 			await this.unregisterAllDevices(UNREGISTER_DEVICES_DELAY_MS);
