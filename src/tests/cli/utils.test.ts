@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { maskSecret, parseArgs } from '../../cli/utils.js';
+// Mock readline before importing prompt
+vi.mock('node:readline');
+
+import readline from 'node:readline';
+
+import { maskSecret, parseArgs, prompt } from '../../cli/utils.js';
 
 describe('parseArgs', () => {
 	it('should parse a single --command argument', () => {
@@ -115,5 +120,75 @@ describe('maskSecret', () => {
 	it('should handle exactly visibleChars length', () => {
 		const result = maskSecret('abcd', 4);
 		expect(result).toBe('****');
+	});
+});
+
+describe('prompt', () => {
+	let mockReadline: any;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		// Setup mock readline interface
+		mockReadline = {
+			question: vi.fn((question: string, callback: (answer: string) => void) => {
+				callback('  typed answer  ');
+			}),
+			close: vi.fn(),
+		};
+
+		// Mock the createInterface function to return our mock readline
+		vi.mocked(readline.createInterface).mockReturnValue(mockReadline as any);
+	});
+
+	afterEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('should return trimmed answer from prompt', async () => {
+		// Act
+		const result = await prompt('Username: ');
+
+		// Assert
+		expect(result).toBe('typed answer');
+	});
+
+	it('should call close on readline interface', async () => {
+		// Act
+		await prompt('Password: ');
+
+		// Assert
+		expect(mockReadline.close).toHaveBeenCalled();
+	});
+
+	it('should call createInterface with stdin and stdout', async () => {
+		// Act
+		await prompt('Test question: ');
+
+		// Assert
+		expect(readline.createInterface).toHaveBeenCalledWith({
+			input: process.stdin,
+			output: process.stdout,
+		});
+	});
+
+	it('should pass the question to readline.question', async () => {
+		// Act
+		await prompt('Custom prompt: ');
+
+		// Assert
+		expect(mockReadline.question).toHaveBeenCalledWith('Custom prompt: ', expect.any(Function));
+	});
+
+	it('should trim whitespace from answer', async () => {
+		// Arrange
+		mockReadline.question.mockImplementation((question: string, callback: (answer: string) => void) => {
+			callback('   spaces   around   ');
+		});
+
+		// Act
+		const result = await prompt('Input: ');
+
+		// Assert
+		expect(result).toBe('spaces   around');
 	});
 });

@@ -5,7 +5,7 @@ vi.mock('node:fs');
 
 import fs from 'node:fs';
 
-import { saveSession } from '../../cli/session.js';
+import { loadSession, saveSession } from '../../cli/session.js';
 import type { CliSession } from '../../cli/types.js';
 
 describe('saveSession', () => {
@@ -135,5 +135,64 @@ describe('saveSession', () => {
 		expect(parsedSession.userData.expiresAtEpochSeconds).toBe(1609459200);
 		expect(parsedSession.userData.country).toBe('GB');
 		expect(parsedSession.userData.language).toBe('en-GB');
+	});
+});
+
+describe('loadSession', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	afterEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('should return parsed CliSession when file exists and contains valid JSON', () => {
+		// Arrange
+		const mockSession: CliSession = {
+			loginType: 'account',
+			country: 'US',
+			language: 'en-US',
+			userData: {
+				accessToken: 'token123',
+				refreshToken: 'refresh456',
+				expiresAtEpochSeconds: 1609459200,
+				country: 'US',
+				language: 'en-US',
+			},
+		};
+		vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockSession));
+
+		// Act
+		const result = loadSession();
+
+		// Assert
+		expect(result).toEqual(mockSession);
+		expect(fs.readFileSync).toHaveBeenCalledWith('.cli-session.json', 'utf-8');
+	});
+
+	it('should return null when file does not exist', () => {
+		// Arrange
+		vi.mocked(fs.readFileSync).mockImplementation(() => {
+			const err = new Error('ENOENT: no such file or directory');
+			throw err;
+		});
+
+		// Act
+		const result = loadSession();
+
+		// Assert
+		expect(result).toBeNull();
+	});
+
+	it('should return null when file contains invalid JSON', () => {
+		// Arrange
+		vi.mocked(fs.readFileSync).mockReturnValue('{ invalid json }');
+
+		// Act
+		const result = loadSession();
+
+		// Assert
+		expect(result).toBeNull();
 	});
 });

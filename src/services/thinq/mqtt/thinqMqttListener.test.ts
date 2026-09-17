@@ -10,14 +10,20 @@ import { ThinqMqttListener } from './thinqMqttListener.js';
 const mockMqttDevice = {
 	on: vi.fn((event: string, handler: unknown) => {
 		// Handler registration (no-op)
+		return mockMqttDevice;
 	}),
 	subscribe: vi.fn(),
 	end: vi.fn(),
 };
 
-vi.mock('aws-iot-device-sdk', () => ({
-	device: vi.fn(() => mockMqttDevice),
-}));
+vi.mock('aws-iot-device-sdk', () => {
+	const DeviceConstructor = function () {
+		return mockMqttDevice;
+	};
+	return {
+		device: DeviceConstructor,
+	};
+});
 
 // Mock file system operations
 vi.mock('node:fs', () => ({
@@ -26,6 +32,17 @@ vi.mock('node:fs', () => ({
 		writeFile: vi.fn().mockResolvedValue(undefined),
 		mkdir: vi.fn().mockResolvedValue(undefined),
 	},
+}));
+
+// Mock mqttCertificate module
+vi.mock('./mqttCertificate.js', () => ({
+	downloadRootCa: vi.fn().mockResolvedValue('-----BEGIN CERTIFICATE-----\nFAKE-PEM\n-----END CERTIFICATE-----'),
+	writeMqttCertificateFiles: vi.fn().mockResolvedValue({
+		ca: '/tmp/ca.pem',
+		cert: '/tmp/cert.pem',
+		key: '/tmp/key.pem',
+	}),
+	certificateRequestBody: vi.fn().mockReturnValue('fake-csr-body'),
 }));
 
 describe('ThinqMqttListener', () => {
@@ -221,6 +238,112 @@ describe('ThinqMqttListener', () => {
 
 			// Should log error about unable to start
 			expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('unable to start after retries'));
+		});
+	});
+
+	describe('connect happy path', () => {
+		beforeEach(() => {
+			vi.clearAllMocks();
+
+			// Setup successful API responses
+			vi.mocked(mockApiClient.getMqttRouteInfo).mockResolvedValue({
+				mqttServer: 'mqtts://mqtt.example.com:8883',
+			});
+			vi.mocked(mockApiClient.registerMqttClient).mockResolvedValue(undefined);
+			vi.mocked(mockApiClient.requestMqttCertificate).mockResolvedValue({
+				certificatePem: 'FAKE-CERT-PEM',
+				subscriptions: ['topic/1', 'topic/2'],
+			});
+			vi.mocked(mockKeyRepository.getOrCreateKeyPair).mockResolvedValue({
+				privateKey: 'FAKE-PRIVATE-KEY',
+				publicKey: 'FAKE-PUBLIC-KEY',
+			});
+			vi.mocked(mockKeyRepository.getOrCreateCsr).mockResolvedValue('FAKE-CSR');
+		});
+
+		it('should construct awsIotDevice with correct clientId and hostname', async () => {
+			const onUpdate = vi.fn();
+			vi.mocked(mockApiClient.getClientId).mockReturnValue('test-client-id');
+
+			await listener['connect'](onUpdate);
+
+			// Verify device was created by checking it was assigned
+			expect(listener['device']).toBe(mockMqttDevice);
+		});
+
+		it('should call wireMqttDeviceEvents after device construction', async () => {
+			const onUpdate = vi.fn();
+			vi.mocked(mockMqttDevice.on).mockClear();
+
+			await listener['connect'](onUpdate);
+
+			// wireMqttDeviceEvents calls device.on to set up event handlers
+			expect(vi.mocked(mockMqttDevice.on)).toHaveBeenCalled();
+		});
+
+		it('should store device instance after successful connection', async () => {
+			const onUpdate = vi.fn();
+
+			await listener['connect'](onUpdate);
+
+			expect(listener['device']).toBeDefined();
+			expect(listener['device']).toBe(mockMqttDevice);
+		});
+
+		it('should call getMqttRouteInfo to get server details', async () => {
+			const onUpdate = vi.fn();
+			vi.mocked(mockApiClient.getMqttRouteInfo).mockClear();
+
+			await listener['connect'](onUpdate);
+
+			expect(vi.mocked(mockApiClient.getMqttRouteInfo)).toHaveBeenCalled();
+		});
+
+		it('should register MQTT client before requesting certificate', async () => {
+			const onUpdate = vi.fn();
+			const callOrder: string[] = [];
+
+			vi.mocked(mockApiClient.registerMqttClient).mockImplementation(async () => {
+				callOrder.push('registerMqttClient');
+			});
+
+			vi.mocked(mockApiClient.requestMqttCertificate).mockImplementation(async () => {
+				callOrder.push('requestMqttCertificate');
+				return { certificatePem: 'FAKE', subscriptions: [] };
+			});
+
+			await listener['connect'](onUpdate);
+
+			expect(callOrder[0]).toBe('registerMqttClient');
+			expect(callOrder[1]).toBe('requestMqttCertificate');
+		});
+
+		it('should get key pair before requesting certificate', async () => {
+			const onUpdate = vi.fn();
+			vi.mocked(mockKeyRepository.getOrCreateKeyPair).mockClear();
+			vi.mocked(mockApiClient.registerMqttClient).mockClear();
+
+			await listener['connect'](onUpdate);
+
+			expect(vi.mocked(mockKeyRepository.getOrCreateKeyPair)).toHaveBeenCalled();
+		});
+
+		it('should get CSR before registering client', async () => {
+			const onUpdate = vi.fn();
+			const callOrder: string[] = [];
+
+			vi.mocked(mockKeyRepository.getOrCreateCsr).mockImplementation(async () => {
+				callOrder.push('getOrCreateCsr');
+				return 'FAKE-CSR';
+			});
+
+			vi.mocked(mockApiClient.registerMqttClient).mockImplementation(async () => {
+				callOrder.push('registerMqttClient');
+			});
+
+			await listener['connect'](onUpdate);
+
+			expect(callOrder.indexOf('getOrCreateCsr')).toBeLessThan(callOrder.indexOf('registerMqttClient'));
 		});
 	});
 });

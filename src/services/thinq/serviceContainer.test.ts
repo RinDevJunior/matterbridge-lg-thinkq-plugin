@@ -29,6 +29,109 @@ describe('ThinqServiceContainer', () => {
 		vi.clearAllMocks();
 	});
 
+	describe('apiClient', () => {
+		it('should return a ThinqApiClient instance', () => {
+			const apiClient = container.apiClient;
+
+			expect(apiClient).toBeDefined();
+		});
+
+		it('should return the same instance on repeated access', () => {
+			const apiClient1 = container.apiClient;
+			const apiClient2 = container.apiClient;
+
+			expect(apiClient1).toBe(apiClient2);
+		});
+	});
+
+	describe('getUserDataRepository', () => {
+		it('should return a UserDataRepository instance', () => {
+			const repo = container.getUserDataRepository();
+
+			expect(repo).toBeDefined();
+		});
+
+		it('should return the same instance on repeated calls (singleton)', () => {
+			const repo1 = container.getUserDataRepository();
+			const repo2 = container.getUserDataRepository();
+
+			expect(repo1).toBe(repo2);
+		});
+	});
+
+	describe('getAuthenticationCoordinator', () => {
+		it('should return an AuthenticationCoordinator instance', () => {
+			const coordinator = container.getAuthenticationCoordinator();
+
+			expect(coordinator).toBeDefined();
+		});
+
+		it('should return the same instance on repeated calls (singleton)', () => {
+			const coordinator1 = container.getAuthenticationCoordinator();
+			const coordinator2 = container.getAuthenticationCoordinator();
+
+			expect(coordinator1).toBe(coordinator2);
+		});
+
+		it('should construct coordinator with apiClient instance', () => {
+			const coordinator = container.getAuthenticationCoordinator();
+
+			expect(coordinator['apiClient']).toBe(container.apiClient);
+		});
+	});
+
+	describe('getDeviceService', () => {
+		it('should return a ThinqDeviceService instance', () => {
+			const service = container.getDeviceService();
+
+			expect(service).toBeDefined();
+		});
+
+		it('should return the same instance on repeated calls (singleton)', () => {
+			const service1 = container.getDeviceService();
+			const service2 = container.getDeviceService();
+
+			expect(service1).toBe(service2);
+		});
+	});
+
+	describe('getDeviceDiscovery', () => {
+		it('should return a ThinqDeviceDiscovery instance', () => {
+			const discovery = container.getDeviceDiscovery();
+
+			expect(discovery).toBeDefined();
+		});
+
+		it('should return the same instance on repeated calls (singleton)', () => {
+			const discovery1 = container.getDeviceDiscovery();
+			const discovery2 = container.getDeviceDiscovery();
+
+			expect(discovery1).toBe(discovery2);
+		});
+
+		it('should reuse the same ThinqDeviceService instance', () => {
+			const deviceService = container.getDeviceService();
+			const discovery = container.getDeviceDiscovery();
+
+			expect(discovery['deviceService']).toBe(deviceService);
+		});
+	});
+
+	describe('getDeviceConfigurator', () => {
+		it('should return a ThinqDeviceConfigurator instance', () => {
+			const configurator = container.getDeviceConfigurator();
+
+			expect(configurator).toBeDefined();
+		});
+
+		it('should return the same instance on repeated calls (singleton)', () => {
+			const configurator1 = container.getDeviceConfigurator();
+			const configurator2 = container.getDeviceConfigurator();
+
+			expect(configurator1).toBe(configurator2);
+		});
+	});
+
 	describe('getMqttListener', () => {
 		it('should return a ThinqMqttListener instance', () => {
 			const listener = container.getMqttListener();
