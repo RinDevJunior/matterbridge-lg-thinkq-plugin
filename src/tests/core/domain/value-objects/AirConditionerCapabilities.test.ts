@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-	type AirConditionerCapabilities,
 	DEFAULT_AIR_CONDITIONER_CAPABILITIES,
 	resolveAirConditionerCapabilities,
 } from '../../../../core/domain/value-objects/AirConditionerCapabilities.js';
@@ -9,11 +8,20 @@ import type { ThinqDeviceConfigEntry } from '../../../../model/LgThinkqPluginPla
 
 describe('AirConditionerCapabilities', () => {
 	describe('DEFAULT_AIR_CONDITIONER_CAPABILITIES', () => {
-		it('should have all capabilities set to true', () => {
+		it('should have existing capabilities set to true', () => {
 			// Assert
 			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsHeat).toBe(true);
 			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsDry).toBe(true);
 			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsFanSpeedControl).toBe(true);
+		});
+
+		it('should have new Phase A toggle capabilities set to false (opt-in)', () => {
+			// Assert
+			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsJetMode).toBe(false);
+			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsQuietMode).toBe(false);
+			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsEnergySaveMode).toBe(false);
+			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsAirCleanMode).toBe(false);
+			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsLedControl).toBe(false);
 		});
 	});
 
@@ -168,6 +176,11 @@ describe('AirConditionerCapabilities', () => {
 				supportsHeat: false,
 				supportsDry: false,
 				supportsFanSpeedControl: true,
+				supportsJetMode: false,
+				supportsQuietMode: false,
+				supportsEnergySaveMode: false,
+				supportsAirCleanMode: false,
+				supportsLedControl: false,
 			});
 		});
 
@@ -211,6 +224,202 @@ describe('AirConditionerCapabilities', () => {
 
 			// Assert
 			expect(result).toEqual(DEFAULT_AIR_CONDITIONER_CAPABILITIES);
+		});
+
+		it('should default new Phase A toggle flags to false when undefined', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [{ deviceId: 'device-123', capabilities: {} }];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsJetMode).toBe(false);
+			expect(result.supportsQuietMode).toBe(false);
+			expect(result.supportsEnergySaveMode).toBe(false);
+			expect(result.supportsAirCleanMode).toBe(false);
+			expect(result.supportsLedControl).toBe(false);
+		});
+
+		it('should override supportsJetMode when specified', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: { supportsJetMode: true },
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsJetMode).toBe(true);
+			expect(result.supportsQuietMode).toBe(false); // default
+			expect(result.supportsEnergySaveMode).toBe(false); // default
+			expect(result.supportsAirCleanMode).toBe(false); // default
+			expect(result.supportsLedControl).toBe(false); // default
+		});
+
+		it('should override supportsQuietMode when specified', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: { supportsQuietMode: true },
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsJetMode).toBe(false); // default
+			expect(result.supportsQuietMode).toBe(true);
+			expect(result.supportsEnergySaveMode).toBe(false); // default
+			expect(result.supportsAirCleanMode).toBe(false); // default
+			expect(result.supportsLedControl).toBe(false); // default
+		});
+
+		it('should override supportsEnergySaveMode when specified', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: { supportsEnergySaveMode: true },
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsJetMode).toBe(false); // default
+			expect(result.supportsQuietMode).toBe(false); // default
+			expect(result.supportsEnergySaveMode).toBe(true);
+			expect(result.supportsAirCleanMode).toBe(false); // default
+			expect(result.supportsLedControl).toBe(false); // default
+		});
+
+		it('should override supportsAirCleanMode when specified', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: { supportsAirCleanMode: true },
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsJetMode).toBe(false); // default
+			expect(result.supportsQuietMode).toBe(false); // default
+			expect(result.supportsEnergySaveMode).toBe(false); // default
+			expect(result.supportsAirCleanMode).toBe(true);
+			expect(result.supportsLedControl).toBe(false); // default
+		});
+
+		it('should override supportsLedControl when specified', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: { supportsLedControl: true },
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsJetMode).toBe(false); // default
+			expect(result.supportsQuietMode).toBe(false); // default
+			expect(result.supportsEnergySaveMode).toBe(false); // default
+			expect(result.supportsAirCleanMode).toBe(false); // default
+			expect(result.supportsLedControl).toBe(true);
+		});
+
+		it('should enable multiple new flags simultaneously', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: {
+						supportsJetMode: true,
+						supportsQuietMode: true,
+						supportsEnergySaveMode: true,
+						supportsLedControl: true,
+					},
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsJetMode).toBe(true);
+			expect(result.supportsQuietMode).toBe(true);
+			expect(result.supportsEnergySaveMode).toBe(true);
+			expect(result.supportsAirCleanMode).toBe(false); // not specified
+			expect(result.supportsLedControl).toBe(true);
+		});
+
+		it('should preserve existing flag defaults (true) when resolving new flags', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: {
+						supportsJetMode: true,
+						supportsQuietMode: false,
+					},
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			// Existing flags should still default to true
+			expect(result.supportsHeat).toBe(true);
+			expect(result.supportsDry).toBe(true);
+			expect(result.supportsFanSpeedControl).toBe(true);
+			// New flags as specified
+			expect(result.supportsJetMode).toBe(true);
+			expect(result.supportsQuietMode).toBe(false);
+		});
+
+		it('should isolate capability flags across multiple devices', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-001',
+					capabilities: { supportsJetMode: true },
+				},
+				{
+					deviceId: 'device-002',
+					capabilities: { supportsQuietMode: true },
+				},
+				{
+					deviceId: 'device-003',
+					capabilities: { supportsEnergySaveMode: true },
+				},
+			];
+
+			// Act
+			const result001 = resolveAirConditionerCapabilities(devices, 'device-001');
+			const result002 = resolveAirConditionerCapabilities(devices, 'device-002');
+			const result003 = resolveAirConditionerCapabilities(devices, 'device-003');
+
+			// Assert
+			expect(result001.supportsJetMode).toBe(true);
+			expect(result001.supportsQuietMode).toBe(false);
+			expect(result002.supportsJetMode).toBe(false);
+			expect(result002.supportsQuietMode).toBe(true);
+			expect(result003.supportsEnergySaveMode).toBe(true);
+			expect(result003.supportsJetMode).toBe(false);
 		});
 	});
 });

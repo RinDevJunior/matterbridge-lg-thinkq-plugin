@@ -4,6 +4,7 @@ import { FanControl, OnOff, TemperatureMeasurement, Thermostat } from 'matterbri
 
 import type { AirConditionerCapabilities } from '../../core/domain/value-objects/AirConditionerCapabilities.js';
 import type { ThinqSnapshot } from '../../core/domain/value-objects/ThinqSnapshot.js';
+import { applyAuxiliaryToggleSnapshot } from './thinqAirConditionerAuxiliaryToggles.js';
 import {
 	THINQ_FAN_SPEED_AUTO,
 	THINQ_FAN_SPEED_LOW,
@@ -147,4 +148,6 @@ export async function applyThinqSnapshotToAirConditioner(
 			logger,
 		);
 	}
+
+	await applyAuxiliaryToggleSnapshot(airConditioner, snapshot, capabilities, logger);
 }

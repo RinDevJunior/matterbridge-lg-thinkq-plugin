@@ -227,7 +227,7 @@ describe('PlatformConfigManager', () => {
 			});
 			const manager = PlatformConfigManager.create(config, mockLogger);
 
-			expect(manager.thinqRefreshIntervalSeconds).toBe(5);
+			expect(manager.thinqRefreshIntervalSeconds).toBe(60);
 		});
 	});
 

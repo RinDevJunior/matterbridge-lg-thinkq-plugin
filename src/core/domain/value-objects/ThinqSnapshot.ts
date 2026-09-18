@@ -33,6 +33,26 @@ export class ThinqSnapshot {
 		return typeof this.data.online === 'boolean' ? this.data.online : undefined;
 	}
 
+	public get isJetModeOn(): boolean {
+		return Number(this.data['airState.wMode.jet']) === 1;
+	}
+
+	public get isQuietModeOn(): boolean {
+		return Number(this.data['airState.miscFuncState.silentAWHP']) === 1;
+	}
+
+	public get isEnergySaveModeOn(): boolean {
+		return Number(this.data['airState.powerSave.basic']) === 1;
+	}
+
+	public get isAirCleanModeOn(): boolean {
+		return Number(this.data['airState.wMode.airClean']) === 1;
+	}
+
+	public get isLedOn(): boolean {
+		return Number(this.data['airState.lightingState.displayControl']) === 1;
+	}
+
 	private readNumber(key: string): number | undefined {
 		const value = this.data[key];
 		return typeof value === 'number' ? value : undefined;

@@ -3,6 +3,7 @@ import { FanControl } from 'matterbridge/matter/clusters';
 
 import type { ThinqAirConditionerDevice } from '../../core/domain/entities/ThinqDevice.js';
 import type { AirConditionerCapabilities } from '../../core/domain/value-objects/AirConditionerCapabilities.js';
+import { addAuxiliaryToggleEndpoints } from './thinqAirConditionerAuxiliaryToggles.js';
 
 export interface AirConditionerEndpointSetpoints {
 	currentTemperature: number;
@@ -76,6 +77,8 @@ export function buildAirConditionerEndpoint(
 	} else {
 		endpoint.createOnOffFanControlClusterServer(initialFanMode);
 	}
+
+	addAuxiliaryToggleEndpoints(endpoint, capabilities);
 
 	return endpoint;
 }

@@ -13,7 +13,7 @@ import {
 	LgThinkqPluginPlatformConfig,
 } from '../model/LgThinkqPluginPlatformConfig.js';
 
-const DEFAULT_THINQ_REFRESH_INTERVAL_SECONDS = 5;
+const DEFAULT_THINQ_REFRESH_INTERVAL_SECONDS = 60;
 
 /**
  * Manages platform configuration with validation and defaults.

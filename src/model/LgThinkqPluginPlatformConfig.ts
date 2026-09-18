@@ -4,6 +4,11 @@ export interface ThinqDeviceCapabilityConfig {
 	supportsHeat?: boolean;
 	supportsDry?: boolean;
 	supportsFanSpeedControl?: boolean;
+	supportsJetMode?: boolean;
+	supportsQuietMode?: boolean;
+	supportsEnergySaveMode?: boolean;
+	supportsAirCleanMode?: boolean;
+	supportsLedControl?: boolean;
 }
 
 export interface ThinqDeviceConfigEntry {

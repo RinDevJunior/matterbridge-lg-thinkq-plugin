@@ -5,6 +5,7 @@ import { FanControl } from 'matterbridge/matter/clusters';
 import type { ThinqAirConditionerDevice } from '../../core/domain/entities/ThinqDevice.js';
 import type { ThinqApiClient } from '../../services/thinq/thinqApiClient.js';
 import { PlatformConfigManager } from '../platformConfigManager.js';
+import { registerAuxiliaryToggleCommandHandlers } from './thinqAirConditionerAuxiliaryToggles.js';
 import {
 	registerAirConditionerCommandHandlers,
 	THINQ_FAN_SPEED_AUTO,
@@ -78,6 +79,7 @@ export class ThinqDeviceConfigurator {
 		airConditioner.mode = 'server';
 
 		registerAirConditionerCommandHandlers(airConditioner, device, this.apiClient, this.logger, capabilities);
+		registerAuxiliaryToggleCommandHandlers(airConditioner, device, this.apiClient, this.logger, capabilities);
 
 		this.logger.debug(`registerAirConditioner: completed for deviceId=${device.id}`);
 		return Promise.resolve(airConditioner);
