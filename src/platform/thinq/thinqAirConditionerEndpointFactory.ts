@@ -1,4 +1,11 @@
-import { airQualitySensor, humiditySensor, MatterbridgeEndpoint, powerSource, roomAirConditioner } from 'matterbridge';
+import {
+	airQualitySensor,
+	electricalSensor,
+	humiditySensor,
+	MatterbridgeEndpoint,
+	powerSource,
+	roomAirConditioner,
+} from 'matterbridge';
 import { AirQuality, FanControl } from 'matterbridge/matter/clusters';
 
 import type { ThinqAirConditionerDevice } from '../../core/domain/entities/ThinqDevice.js';
@@ -106,6 +113,13 @@ export function buildAirConditionerEndpoint(
 			.createDefaultAirQualityClusterServer(AirQuality.AirQualityEnum.Unknown)
 			.createDefaultPm25ConcentrationMeasurementClusterServer()
 			.createDefaultPm10ConcentrationMeasurementClusterServer();
+	}
+
+	if (capabilities.supportsEnergyMonitoring) {
+		endpoint
+			.addChildDeviceType('EnergyMonitor', [electricalSensor])
+			.createDefaultIdentifyClusterServer()
+			.createDefaultElectricalPowerMeasurementClusterServer();
 	}
 
 	return endpoint;

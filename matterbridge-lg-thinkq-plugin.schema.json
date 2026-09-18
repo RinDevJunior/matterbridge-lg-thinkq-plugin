@@ -126,6 +126,12 @@
 										"description": "Whether this device reports air-quality (AQI, PM2.5, PM10) data.",
 										"type": "boolean",
 										"default": false
+									},
+									"supportsEnergyMonitoring": {
+										"title": "Supports Energy Monitoring",
+										"description": "Whether this device reports instantaneous power consumption data.",
+										"type": "boolean",
+										"default": false
 									}
 								}
 							}

@@ -2,6 +2,7 @@ import { MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger } from 'matterbridge/logger';
 import {
 	AirQuality,
+	ElectricalPowerMeasurement,
 	FanControl,
 	OnOff,
 	Pm10ConcentrationMeasurement,
@@ -214,6 +215,16 @@ export async function applyThinqSnapshotToAirConditioner(
 					pm10Value,
 					logger,
 				);
+			}
+		}
+	}
+
+	if (capabilities.supportsEnergyMonitoring) {
+		const powerConsumptionWatts = snapshot.powerConsumptionWatts;
+		if (powerConsumptionWatts !== undefined) {
+			const energyMonitorChild = airConditioner.getChildEndpointById('EnergyMonitor');
+			if (energyMonitorChild) {
+				await energyMonitorChild.updateAttribute(ElectricalPowerMeasurement.id, 'power', powerConsumptionWatts, logger);
 			}
 		}
 	}

@@ -81,6 +81,15 @@ export class ThinqSnapshot {
 		return this.readNumber('airState.quality.PM10');
 	}
 
+	public get powerConsumptionWatts(): number | undefined {
+		const value = this.readNumber('airState.energy.onCurrent');
+		if (value === undefined) {
+			return undefined;
+		}
+		const watts = value / 100;
+		return Number.isNaN(watts) ? undefined : watts;
+	}
+
 	private readNumber(key: string): number | undefined {
 		const value = this.data[key];
 		return typeof value === 'number' ? value : undefined;

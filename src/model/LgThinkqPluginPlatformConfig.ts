@@ -12,6 +12,7 @@ export interface ThinqDeviceCapabilityConfig {
 	supportsSwingMode?: boolean;
 	supportsHumiditySensor?: boolean;
 	supportsAirQualitySensor?: boolean;
+	supportsEnergyMonitoring?: boolean;
 }
 
 export interface ThinqDeviceConfigEntry {

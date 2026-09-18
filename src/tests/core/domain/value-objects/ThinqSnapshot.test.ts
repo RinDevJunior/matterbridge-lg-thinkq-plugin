@@ -573,4 +573,70 @@ describe('ThinqSnapshot', () => {
 			expect(snapshot.pm10).toBe(0);
 		});
 	});
+
+	describe('powerConsumptionWatts (Phase D)', () => {
+		it('should return the value divided by 100 when present', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.energy.onCurrent': 500 });
+
+			// Assert
+			expect(snapshot.powerConsumptionWatts).toBe(5);
+		});
+
+		it('should return 0 when airState.energy.onCurrent is 0', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.energy.onCurrent': 0 });
+
+			// Assert
+			expect(snapshot.powerConsumptionWatts).toBe(0);
+		});
+
+		it('should return undefined when key is absent', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({});
+
+			// Assert
+			expect(snapshot.powerConsumptionWatts).toBeUndefined();
+		});
+
+		it('should return undefined when value is not a number', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.energy.onCurrent': '500' });
+
+			// Assert
+			expect(snapshot.powerConsumptionWatts).toBeUndefined();
+		});
+
+		it('should return undefined when the result is NaN', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.energy.onCurrent': NaN });
+
+			// Assert
+			expect(snapshot.powerConsumptionWatts).toBeUndefined();
+		});
+
+		it('should handle decimal division correctly (999 → 9.99)', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.energy.onCurrent': 999 });
+
+			// Assert
+			expect(snapshot.powerConsumptionWatts).toBe(9.99);
+		});
+
+		it('should handle large power values (5000 → 50)', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.energy.onCurrent': 5000 });
+
+			// Assert
+			expect(snapshot.powerConsumptionWatts).toBe(50);
+		});
+
+		it('should handle fractional onCurrent values (1.5 → 0.015)', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.energy.onCurrent': 1.5 });
+
+			// Assert
+			expect(snapshot.powerConsumptionWatts).toBe(0.015);
+		});
+	});
 });
