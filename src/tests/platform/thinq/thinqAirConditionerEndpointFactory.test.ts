@@ -31,6 +31,7 @@ vi.mock('matterbridge', () => ({
 	humiditySensor: { id: 'humiditySensor' },
 	airQualitySensor: { id: 'airQualitySensor' },
 	electricalSensor: { id: 'electricalSensor' },
+	genericSwitch: { id: 'genericSwitch' },
 }));
 
 vi.mock('../../../platform/thinq/thinqAirConditionerAuxiliaryToggles.js', () => ({
@@ -55,6 +56,7 @@ function createChainableMock() {
 		createDefaultPm25ConcentrationMeasurementClusterServer: vi.fn().mockReturnThis(),
 		createDefaultPm10ConcentrationMeasurementClusterServer: vi.fn().mockReturnThis(),
 		createDefaultElectricalPowerMeasurementClusterServer: vi.fn().mockReturnThis(),
+		createDefaultMomentarySwitchClusterServer: vi.fn().mockReturnThis(),
 	};
 }
 
@@ -781,6 +783,181 @@ describe('buildAirConditionerEndpoint', () => {
 			expect(calls.some((call: any[]) => call[0] === 'HumiditySensor')).toBe(true);
 			expect(calls.some((call: any[]) => call[0] === 'AirQualitySensor')).toBe(true);
 			expect(calls.some((call: any[]) => call[0] === 'EnergyMonitor')).toBe(true);
+		});
+	});
+
+	describe('scene button child endpoints (Phase F)', () => {
+		it('should not add scene button endpoints when options are undefined', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert - count the addChildDeviceType calls and ensure no scene button endpoints
+			const calls = (mockEndpoint.addChildDeviceType as any).mock.calls;
+			const sceneButtonCalls = calls.filter(
+				(call: any[]) => !['HumiditySensor', 'AirQualitySensor', 'EnergyMonitor'].includes(call[0]),
+			);
+			expect(sceneButtonCalls).toHaveLength(0);
+		});
+
+		it('should not add scene button endpoints when sceneButtons option is undefined', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low, {
+				sceneButtons: undefined,
+			});
+
+			// Assert
+			const calls = (mockEndpoint.addChildDeviceType as any).mock.calls;
+			const sceneButtonCalls = calls.filter(
+				(call: any[]) => !['HumiditySensor', 'AirQualitySensor', 'EnergyMonitor'].includes(call[0]),
+			);
+			expect(sceneButtonCalls).toHaveLength(0);
+		});
+
+		it('should not add scene button endpoints when sceneButtons array is empty', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low, {
+				sceneButtons: [],
+			});
+
+			// Assert
+			const calls = (mockEndpoint.addChildDeviceType as any).mock.calls;
+			const sceneButtonCalls = calls.filter(
+				(call: any[]) => !['HumiditySensor', 'AirQualitySensor', 'EnergyMonitor'].includes(call[0]),
+			);
+			expect(sceneButtonCalls).toHaveLength(0);
+		});
+
+		it('should add one scene button endpoint when one button is configured', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low, {
+				sceneButtons: [{ name: 'PowerOff', opMode: 0 }],
+			});
+
+			// Assert
+			expect(mockEndpoint.addChildDeviceType).toHaveBeenCalledWith('PowerOff', expect.any(Array));
+		});
+
+		it('should add multiple scene button endpoints when multiple buttons are configured', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low, {
+				sceneButtons: [
+					{ name: 'PowerOff', opMode: 0 },
+					{ name: 'Cool26', opMode: 1 },
+				],
+			});
+
+			// Assert
+			expect(mockEndpoint.addChildDeviceType).toHaveBeenCalledWith('PowerOff', expect.any(Array));
+			expect(mockEndpoint.addChildDeviceType).toHaveBeenCalledWith('Cool26', expect.any(Array));
+		});
+
+		it('should sanitize scene button names by removing spaces', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low, {
+				sceneButtons: [{ name: 'Power Off', opMode: 0 }],
+			});
+
+			// Assert
+			expect(mockEndpoint.addChildDeviceType).toHaveBeenCalledWith('PowerOff', expect.any(Array));
+		});
+
+		it('should deduplicate scene button endpoint names', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low, {
+				sceneButtons: [
+					{ name: 'Power Off', opMode: 0 },
+					{ name: 'PowerOff', opMode: 1 },
+				],
+			});
+
+			// Assert
+			const calls = (mockEndpoint.addChildDeviceType as any).mock.calls;
+			const sceneButtonNames = calls.map((call: any[]) => call[0]);
+			expect(sceneButtonNames).toContain('PowerOff');
+			expect(sceneButtonNames).toContain('PowerOff1');
+		});
+
+		it('should create momentary switch cluster servers for scene buttons', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low, {
+				sceneButtons: [{ name: 'PowerOff', opMode: 0 }],
+			});
+
+			// Assert - verify that the child endpoint had createDefaultMomentarySwitchClusterServer called
+			const childEndpoint = (mockEndpoint.addChildDeviceType as any).mock.results[0]?.value;
+			expect(childEndpoint?.createDefaultMomentarySwitchClusterServer).toHaveBeenCalled();
+		});
+
+		it('should coexist with other child endpoints (sensors, energy) when all enabled', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsHumiditySensor: true,
+				supportsAirQualitySensor: true,
+				supportsEnergyMonitoring: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low, {
+				sceneButtons: [{ name: 'PowerOff', opMode: 0 }],
+			});
+
+			// Assert
+			const calls = (mockEndpoint.addChildDeviceType as any).mock.calls;
+			const childEndpointNames = calls.map((call: any[]) => call[0]);
+			expect(childEndpointNames).toContain('HumiditySensor');
+			expect(childEndpointNames).toContain('AirQualitySensor');
+			expect(childEndpointNames).toContain('EnergyMonitor');
+			expect(childEndpointNames).toContain('PowerOff');
 		});
 	});
 });

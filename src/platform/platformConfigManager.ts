@@ -11,6 +11,7 @@ import {
 	createDefaultAdvancedFeature,
 	createDefaultThinqConfig,
 	LgThinkqPluginPlatformConfig,
+	type ThinqSceneButtonConfig,
 } from '../model/LgThinkqPluginPlatformConfig.js';
 
 const DEFAULT_THINQ_REFRESH_INTERVAL_SECONDS = 60;
@@ -85,6 +86,10 @@ export class PlatformConfigManager {
 
 	public getDeviceCapabilities(deviceId: string): AirConditionerCapabilities {
 		return resolveAirConditionerCapabilities(this.config.thinq.devices, deviceId);
+	}
+
+	public getSceneButtons(deviceId: string): ThinqSceneButtonConfig[] {
+		return this.config.thinq.devices?.find((d) => d.deviceId === deviceId)?.sceneButtons ?? [];
 	}
 
 	public validateConfig(): boolean {

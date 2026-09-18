@@ -13,6 +13,7 @@ import {
 	THINQ_FAN_SPEED_MEDIUM,
 } from './thinqAirConditionerCommandHandlers.js';
 import { buildAirConditionerEndpoint } from './thinqAirConditionerEndpointFactory.js';
+import { registerSceneButtonCommandHandlers } from './thinqAirConditionerSceneButtons.js';
 
 const DEFAULT_TEMPERATURE_CELSIUS = 20;
 const MAX_HEAT_SETPOINT_LIMIT_CELSIUS = 30;
@@ -51,6 +52,7 @@ export class ThinqDeviceConfigurator {
 		const currentTemperature = snapshot.currentTemperatureCelsius ?? DEFAULT_TEMPERATURE_CELSIUS;
 		const targetTemperature = snapshot.targetTemperatureCelsius ?? DEFAULT_TEMPERATURE_CELSIUS;
 		const capabilities = this.configManager.getDeviceCapabilities(device.id);
+		const sceneButtons = this.configManager.getSceneButtons(device.id);
 
 		this.logger.debug(`registerAirConditioner: entry for deviceId=${device.id}`);
 		this.logger.info(`Registering ThinQ AirConditioner: ${device.name} (${device.id})`);
@@ -71,6 +73,7 @@ export class ThinqDeviceConfigurator {
 				maxCoolSetpointLimitCelsius: 50,
 			},
 			initialFanMode,
+			{ sceneButtons },
 		)
 			.createDefaultTemperatureMeasurementClusterServer(currentTemperature * 100)
 			.addRequiredClusterServers();
@@ -80,6 +83,7 @@ export class ThinqDeviceConfigurator {
 
 		registerAirConditionerCommandHandlers(airConditioner, device, this.apiClient, this.logger, capabilities);
 		registerAuxiliaryToggleCommandHandlers(airConditioner, device, this.apiClient, this.logger, capabilities);
+		registerSceneButtonCommandHandlers(airConditioner, sceneButtons, device, this.apiClient, this.logger);
 
 		this.logger.debug(`registerAirConditioner: completed for deviceId=${device.id}`);
 		return Promise.resolve(airConditioner);

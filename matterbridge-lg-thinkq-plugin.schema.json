@@ -134,6 +134,27 @@
 										"default": false
 									}
 								}
+							},
+							"sceneButtons": {
+								"title": "Scene Buttons",
+								"description": "Optional custom quick-access scene buttons that switch the AC to a saved mode combo with one tap.",
+								"type": "array",
+								"items": {
+									"type": "object",
+									"properties": {
+										"name": {
+											"title": "Button Name",
+											"description": "Display name for this scene button (e.g. 'Eco', 'Comfort').",
+											"type": "string"
+										},
+										"opMode": {
+											"title": "Operation Mode",
+											"description": "ThinQ operation mode number to activate when this button is pressed.",
+											"type": "number"
+										}
+									},
+									"required": ["name", "opMode"]
+								}
 							}
 						},
 						"required": ["deviceId"]

@@ -15,9 +15,15 @@ export interface ThinqDeviceCapabilityConfig {
 	supportsEnergyMonitoring?: boolean;
 }
 
+export interface ThinqSceneButtonConfig {
+	name: string;
+	opMode: number;
+}
+
 export interface ThinqDeviceConfigEntry {
 	deviceId: string;
 	capabilities?: ThinqDeviceCapabilityConfig;
+	sceneButtons?: ThinqSceneButtonConfig[];
 }
 
 export interface ThinqAuthConfig {
