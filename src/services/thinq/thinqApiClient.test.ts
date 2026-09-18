@@ -152,6 +152,52 @@ describe('ThinqApiClient', () => {
 		});
 	});
 
+	describe('sendKeepAlive', () => {
+		it('should throw error when deviceId is empty', async () => {
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+
+			await expect(apiClient.sendKeepAlive('')).rejects.toThrow('Invalid deviceId');
+		});
+
+		it('should throw error when deviceId is whitespace only', async () => {
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+
+			await expect(apiClient.sendKeepAlive('   ')).rejects.toThrow('Invalid deviceId');
+		});
+
+		it('should send keep-alive with correct payload', async () => {
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+			mockAxios.onPost(`${gatewayData.thinq2Uri}/service/devices/device-123/control`).reply(200);
+
+			await apiClient.sendKeepAlive('device-123');
+
+			expect(mockAxios.history.post).toHaveLength(1);
+			const request = mockAxios.history.post[0];
+			const body = JSON.parse(request.data as string);
+			expect(body).toEqual({
+				ctrlKey: 'allEventEnable',
+				command: 'Set',
+				dataKey: 'airState.mon.timeout',
+				dataValue: '70',
+			});
+		});
+
+		it('should propagate rejection when POST fails', async () => {
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+			mockAxios.onPost(`${gatewayData.thinq2Uri}/service/devices/device-123/control`).reply(500);
+
+			await expect(apiClient.sendKeepAlive('device-123')).rejects.toThrow();
+		});
+	});
+
 	describe('refreshToken', () => {
 		it('should refresh the session access token', async () => {
 			const oldSession = new ThinqSession('old-access', 'refresh-token-123', Math.floor(Date.now() / 1000));

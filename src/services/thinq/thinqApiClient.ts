@@ -147,6 +147,24 @@ export class ThinqApiClient {
 		});
 	}
 
+	/**
+	 * Sends a keep-alive command to an AC device to maintain MQTT push updates from LG's cloud.
+	 * POSTs to `service/devices/{id}/control` (not `control-sync`) with `ctrlKey: 'allEventEnable'`
+	 * to refresh the 70-second MQTT event window.
+	 */
+	public async sendKeepAlive(deviceId: string): Promise<void> {
+		if (!deviceId.trim()) {
+			throw new Error('Invalid deviceId: must be a non-empty string.');
+		}
+
+		await this.request('post', `service/devices/${deviceId}/control`, {
+			ctrlKey: 'allEventEnable',
+			command: 'Set',
+			dataKey: 'airState.mon.timeout',
+			dataValue: '70',
+		});
+	}
+
 	/** Exchanges a refresh token for a new access token (`grant_type=refresh_token`), mutating and returning `session`. */
 	public async refreshToken(session: ThinqSession): Promise<ThinqSession> {
 		const tokenUrl = `https://${this.country.toLowerCase()}.lgeapi.com/oauth/1.0/oauth2/token`;
