@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.0-rc03] - 2026-09-18
+
+### Added
+
+- **AC keep-alive heartbeat** — periodic heartbeat alongside the existing polling loop keeps ThinQ AirConditioner connections alive between state refreshes, reducing stale/dropped device sessions (PR #6).
+
+### Changed
+
+- **Test coverage** — closed a coverage gap to keep CI at the required 75% threshold.
+
+<a href="https://www.buymeacoffee.com/rinnvspktr" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
+---
+
 ## [0.1.0-rc02] - 2026-09-16
 
 ### Added
