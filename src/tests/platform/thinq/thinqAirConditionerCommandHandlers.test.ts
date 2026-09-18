@@ -596,4 +596,284 @@ describe('registerAirConditionerCommandHandlers', () => {
 			expect(sendCommandSpy).not.toHaveBeenCalled();
 		});
 	});
+
+	describe('FanControl rockSetting subscribeAttribute handler (Phase B)', () => {
+		it('should register rockSetting subscribeAttribute when supportsSwingMode is true', () => {
+			// Arrange
+			const swingCapabilities: AirConditionerCapabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+
+			// Act
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, swingCapabilities);
+
+			// Assert
+			const calls = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls;
+			const hasRockSetting = calls.some((call: any[]) => call[1] === 'rockSetting');
+			expect(hasRockSetting).toBe(true);
+		});
+
+		it('should not register rockSetting subscribeAttribute when supportsSwingMode is false', () => {
+			// Arrange
+			const noSwingCapabilities: AirConditionerCapabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: false,
+			};
+
+			// Act
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, noSwingCapabilities);
+
+			// Assert
+			const calls = vi.mocked(mockEndpoint.subscribeAttribute).mock.calls;
+			const hasRockSetting = calls.some((call: any[]) => call[1] === 'rockSetting');
+			expect(hasRockSetting).toBe(false);
+		});
+
+		it('should ignore update when context.fabric is undefined', () => {
+			// Arrange
+			const swingCapabilities: AirConditionerCapabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, swingCapabilities);
+			const setRockHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'rockSetting')?.[2] as ((...args: any[]) => any) | undefined;
+			const sendCommandSpy = vi.mocked(mockApiClient.sendCommand);
+
+			// Act
+			if (setRockHandler) {
+				setRockHandler({ rockUpDown: true }, { rockUpDown: false }, { fabric: undefined });
+			}
+
+			// Assert
+			expect(sendCommandSpy).not.toHaveBeenCalled();
+		});
+
+		it('should send vertical swing command when rockUpDown flips true', async () => {
+			// Arrange
+			const swingCapabilities: AirConditionerCapabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, swingCapabilities);
+			const setRockHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'rockSetting')?.[2] as ((...args: any[]) => any) | undefined;
+
+			// Act
+			if (setRockHandler) {
+				setRockHandler(
+					{ rockUpDown: true, rockLeftRight: false, rockRound: false },
+					{ rockUpDown: false, rockLeftRight: false, rockRound: false },
+					{ fabric: { index: 1 } },
+				);
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
+
+			// Assert
+			expect(vi.mocked(mockApiClient.sendCommand)).toHaveBeenCalledWith('device-123', {
+				dataKey: 'airState.wDir.vStep',
+				dataValue: '100',
+			});
+		});
+
+		it('should send vertical swing off command when rockUpDown flips false', async () => {
+			// Arrange
+			const swingCapabilities: AirConditionerCapabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, swingCapabilities);
+			const setRockHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'rockSetting')?.[2] as ((...args: any[]) => any) | undefined;
+
+			// Act
+			if (setRockHandler) {
+				setRockHandler(
+					{ rockUpDown: false, rockLeftRight: false, rockRound: false },
+					{ rockUpDown: true, rockLeftRight: false, rockRound: false },
+					{ fabric: { index: 1 } },
+				);
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
+
+			// Assert
+			expect(vi.mocked(mockApiClient.sendCommand)).toHaveBeenCalledWith('device-123', {
+				dataKey: 'airState.wDir.vStep',
+				dataValue: '0',
+			});
+		});
+
+		it('should send horizontal swing command when rockLeftRight flips true', async () => {
+			// Arrange
+			const swingCapabilities: AirConditionerCapabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, swingCapabilities);
+			const setRockHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'rockSetting')?.[2] as ((...args: any[]) => any) | undefined;
+
+			// Act
+			if (setRockHandler) {
+				setRockHandler(
+					{ rockUpDown: false, rockLeftRight: true, rockRound: false },
+					{ rockUpDown: false, rockLeftRight: false, rockRound: false },
+					{ fabric: { index: 1 } },
+				);
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
+
+			// Assert
+			expect(vi.mocked(mockApiClient.sendCommand)).toHaveBeenCalledWith('device-123', {
+				dataKey: 'airState.wDir.hStep',
+				dataValue: '100',
+			});
+		});
+
+		it('should send horizontal swing off command when rockLeftRight flips false', async () => {
+			// Arrange
+			const swingCapabilities: AirConditionerCapabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, swingCapabilities);
+			const setRockHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'rockSetting')?.[2] as ((...args: any[]) => any) | undefined;
+
+			// Act
+			if (setRockHandler) {
+				setRockHandler(
+					{ rockUpDown: false, rockLeftRight: false, rockRound: false },
+					{ rockUpDown: false, rockLeftRight: true, rockRound: false },
+					{ fabric: { index: 1 } },
+				);
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
+
+			// Assert
+			expect(vi.mocked(mockApiClient.sendCommand)).toHaveBeenCalledWith('device-123', {
+				dataKey: 'airState.wDir.hStep',
+				dataValue: '0',
+			});
+		});
+
+		it('should send compound favoriteCtrl command when both axes flip to true simultaneously', async () => {
+			// Arrange
+			const swingCapabilities: AirConditionerCapabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, swingCapabilities);
+			const setRockHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'rockSetting')?.[2] as ((...args: any[]) => any) | undefined;
+
+			// Act
+			if (setRockHandler) {
+				setRockHandler(
+					{ rockUpDown: true, rockLeftRight: true, rockRound: false },
+					{ rockUpDown: false, rockLeftRight: false, rockRound: false },
+					{ fabric: { index: 1 } },
+				);
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
+
+			// Assert
+			expect(vi.mocked(mockApiClient.sendCommand)).toHaveBeenCalledWith('device-123', {
+				dataKey: null,
+				dataValue: null,
+				command: 'Set',
+				ctrlKey: 'favoriteCtrl',
+				dataSetList: {
+					'airState.wDir.vStep': '100',
+					'airState.wDir.hStep': '100',
+				},
+			});
+		});
+
+		it('should send individual commands when only one axis changes (not compound favoriteCtrl)', async () => {
+			// Arrange
+			const swingCapabilities: AirConditionerCapabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+			mockApiClient = createMockApiClient();
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, swingCapabilities);
+			const setRockHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'rockSetting')?.[2] as ((...args: any[]) => any) | undefined;
+
+			// Act
+			if (setRockHandler) {
+				setRockHandler(
+					{ rockUpDown: true, rockLeftRight: false, rockRound: false },
+					{ rockUpDown: true, rockLeftRight: true, rockRound: false },
+					{ fabric: { index: 1 } },
+				);
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
+
+			// Assert
+			expect(vi.mocked(mockApiClient.sendCommand)).toHaveBeenCalledWith('device-123', {
+				dataKey: 'airState.wDir.hStep',
+				dataValue: '0',
+			});
+			// Should NOT use compound favoriteCtrl
+			const sendCalls = vi.mocked(mockApiClient.sendCommand).mock.calls;
+			const hasFavoriteCtrl = sendCalls.some((call: any[]) => call[1]?.ctrlKey === 'favoriteCtrl');
+			expect(hasFavoriteCtrl).toBe(false);
+		});
+
+		it('should ignore rockRound-only changes with debug log', () => {
+			// Arrange
+			const swingCapabilities: AirConditionerCapabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, swingCapabilities);
+			const setRockHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'rockSetting')?.[2] as ((...args: any[]) => any) | undefined;
+			const sendCommandSpy = vi.mocked(mockApiClient.sendCommand);
+
+			// Act
+			if (setRockHandler) {
+				setRockHandler(
+					{ rockUpDown: false, rockLeftRight: false, rockRound: true },
+					{ rockUpDown: false, rockLeftRight: false, rockRound: false },
+					{ fabric: { index: 1 } },
+				);
+			}
+
+			// Assert
+			expect(sendCommandSpy).not.toHaveBeenCalled();
+		});
+
+		it('should ignore update when both old and new values are undefined', () => {
+			// Arrange
+			const swingCapabilities: AirConditionerCapabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+			registerAirConditionerCommandHandlers(mockEndpoint, mockDevice, mockApiClient, mockLogger, swingCapabilities);
+			const setRockHandler = vi
+				.mocked(mockEndpoint.subscribeAttribute)
+				.mock.calls.find((call: any[]) => call[1] === 'rockSetting')?.[2] as ((...args: any[]) => any) | undefined;
+			const sendCommandSpy = vi.mocked(mockApiClient.sendCommand);
+
+			// Act
+			if (setRockHandler) {
+				setRockHandler(undefined, undefined, { fabric: { index: 1 } });
+			}
+
+			// Assert
+			expect(sendCommandSpy).not.toHaveBeenCalled();
+		});
+	});
 });

@@ -321,4 +321,88 @@ describe('ThinqSnapshot', () => {
 			expect(snapshot.isLedOn).toBe(false);
 		});
 	});
+
+	describe('isVerticalSwingOn (Phase B)', () => {
+		it('should return true when airState.wDir.vStep is 100 (numeric)', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.wDir.vStep': 100 });
+
+			// Assert
+			expect(snapshot.isVerticalSwingOn).toBe(true);
+		});
+
+		it('should return true when airState.wDir.vStep is "100" (string)', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.wDir.vStep': '100' });
+
+			// Assert
+			expect(snapshot.isVerticalSwingOn).toBe(true);
+		});
+
+		it('should return false when airState.wDir.vStep is 0', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.wDir.vStep': 0 });
+
+			// Assert
+			expect(snapshot.isVerticalSwingOn).toBe(false);
+		});
+
+		it('should return false when airState.wDir.vStep is absent', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({});
+
+			// Assert
+			expect(snapshot.isVerticalSwingOn).toBe(false);
+		});
+
+		it('should return false when airState.wDir.vStep is any other number', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.wDir.vStep': 50 });
+
+			// Assert
+			expect(snapshot.isVerticalSwingOn).toBe(false);
+		});
+	});
+
+	describe('isHorizontalSwingOn (Phase B)', () => {
+		it('should return true when airState.wDir.hStep is 100 (numeric)', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.wDir.hStep': 100 });
+
+			// Assert
+			expect(snapshot.isHorizontalSwingOn).toBe(true);
+		});
+
+		it('should return true when airState.wDir.hStep is "100" (string)', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.wDir.hStep': '100' });
+
+			// Assert
+			expect(snapshot.isHorizontalSwingOn).toBe(true);
+		});
+
+		it('should return false when airState.wDir.hStep is 0', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.wDir.hStep': 0 });
+
+			// Assert
+			expect(snapshot.isHorizontalSwingOn).toBe(false);
+		});
+
+		it('should return false when airState.wDir.hStep is absent', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({});
+
+			// Assert
+			expect(snapshot.isHorizontalSwingOn).toBe(false);
+		});
+
+		it('should return false when airState.wDir.hStep is any other number', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.wDir.hStep': 50 });
+
+			// Assert
+			expect(snapshot.isHorizontalSwingOn).toBe(false);
+		});
+	});
 });

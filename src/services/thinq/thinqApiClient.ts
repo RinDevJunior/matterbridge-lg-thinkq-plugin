@@ -53,6 +53,8 @@ export interface ThinqCommandPayload {
 	dataSetList?: Record<string, unknown>;
 	/** Overrides `sendCommand`'s default `'Set'`, e.g. `'Operation'` for AC power (homebridge-lg-thinq parity). */
 	command?: string;
+	/** Overrides `sendCommand`'s default `'basicCtrl'`, e.g. `'favoriteCtrl'` for swing mode compound writes (homebridge-lg-thinq parity). */
+	ctrlKey?: string;
 }
 
 function randomMessageId(length = 22): string {

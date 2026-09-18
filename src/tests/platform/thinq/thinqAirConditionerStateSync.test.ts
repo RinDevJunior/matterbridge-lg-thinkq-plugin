@@ -526,4 +526,268 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 		// No child endpoint calls should happen
 		expect(airConditioner.getChildEndpointById).not.toHaveBeenCalled();
 	});
+
+	describe('applyThinqSnapshotToAirConditioner with rockSetting (Phase B)', () => {
+		let mockLogger: ReturnType<typeof createMockLogger>;
+		let airConditioner: any;
+		let capabilities: AirConditionerCapabilities;
+
+		beforeEach(() => {
+			vi.clearAllMocks();
+			mockLogger = createMockLogger();
+
+			airConditioner = {
+				id: 0x01,
+				name: 'Living Room AC',
+				log: mockLogger,
+				updateAttribute: vi.fn().mockResolvedValue(false),
+			};
+		});
+
+		afterEach(() => {
+			vi.clearAllMocks();
+		});
+
+		it('should update rockSetting when supportsSwingMode is true with both axes on', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+
+			const snapshot = new ThinqSnapshot({
+				'airState.operation': 1,
+				'airState.tempState.current': 22,
+				'airState.tempState.target': 24,
+				'airState.opMode': 0,
+				'airState.windStrength': 2,
+				'airState.wDir.vStep': 100,
+				'airState.wDir.hStep': 100,
+			});
+
+			const updateAttributeSpy = vi.spyOn(airConditioner, 'updateAttribute').mockResolvedValue(false);
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(updateAttributeSpy).toHaveBeenCalledWith(
+				FanControl.id,
+				'rockSetting',
+				{
+					rockLeftRight: true,
+					rockUpDown: true,
+					rockRound: true,
+				},
+				mockLogger,
+			);
+		});
+
+		it('should update rockSetting with vertical swing only', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+
+			const snapshot = new ThinqSnapshot({
+				'airState.operation': 1,
+				'airState.tempState.current': 22,
+				'airState.tempState.target': 24,
+				'airState.opMode': 0,
+				'airState.windStrength': 2,
+				'airState.wDir.vStep': 100,
+				'airState.wDir.hStep': 0,
+			});
+
+			const updateAttributeSpy = vi.spyOn(airConditioner, 'updateAttribute').mockResolvedValue(false);
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(updateAttributeSpy).toHaveBeenCalledWith(
+				FanControl.id,
+				'rockSetting',
+				{
+					rockLeftRight: false,
+					rockUpDown: true,
+					rockRound: false,
+				},
+				mockLogger,
+			);
+		});
+
+		it('should update rockSetting with horizontal swing only', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+
+			const snapshot = new ThinqSnapshot({
+				'airState.operation': 1,
+				'airState.tempState.current': 22,
+				'airState.tempState.target': 24,
+				'airState.opMode': 0,
+				'airState.windStrength': 2,
+				'airState.wDir.vStep': 0,
+				'airState.wDir.hStep': 100,
+			});
+
+			const updateAttributeSpy = vi.spyOn(airConditioner, 'updateAttribute').mockResolvedValue(false);
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(updateAttributeSpy).toHaveBeenCalledWith(
+				FanControl.id,
+				'rockSetting',
+				{
+					rockLeftRight: true,
+					rockUpDown: false,
+					rockRound: false,
+				},
+				mockLogger,
+			);
+		});
+
+		it('should update rockSetting with both axes off', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+
+			const snapshot = new ThinqSnapshot({
+				'airState.operation': 1,
+				'airState.tempState.current': 22,
+				'airState.tempState.target': 24,
+				'airState.opMode': 0,
+				'airState.windStrength': 2,
+				'airState.wDir.vStep': 0,
+				'airState.wDir.hStep': 0,
+			});
+
+			const updateAttributeSpy = vi.spyOn(airConditioner, 'updateAttribute').mockResolvedValue(false);
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(updateAttributeSpy).toHaveBeenCalledWith(
+				FanControl.id,
+				'rockSetting',
+				{
+					rockLeftRight: false,
+					rockUpDown: false,
+					rockRound: false,
+				},
+				mockLogger,
+			);
+		});
+
+		it('should not update rockSetting when supportsSwingMode is false', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: false,
+			};
+
+			const snapshot = new ThinqSnapshot({
+				'airState.operation': 1,
+				'airState.tempState.current': 22,
+				'airState.tempState.target': 24,
+				'airState.opMode': 0,
+				'airState.windStrength': 2,
+				'airState.wDir.vStep': 100,
+				'airState.wDir.hStep': 100,
+			});
+
+			const updateAttributeSpy = vi.spyOn(airConditioner, 'updateAttribute').mockResolvedValue(false);
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			const rockSettingCalls = updateAttributeSpy.mock.calls.filter(
+				(call: any[]) => call[0] === FanControl.id && call[1] === 'rockSetting',
+			);
+			expect(rockSettingCalls).toHaveLength(0);
+		});
+
+		it('should handle string values for swing steps (100 as string)', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsSwingMode: true,
+			};
+
+			const snapshot = new ThinqSnapshot({
+				'airState.operation': 1,
+				'airState.tempState.current': 22,
+				'airState.tempState.target': 24,
+				'airState.opMode': 0,
+				'airState.windStrength': 2,
+				'airState.wDir.vStep': '100',
+				'airState.wDir.hStep': '100',
+			});
+
+			const updateAttributeSpy = vi.spyOn(airConditioner, 'updateAttribute').mockResolvedValue(false);
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(updateAttributeSpy).toHaveBeenCalledWith(
+				FanControl.id,
+				'rockSetting',
+				{
+					rockLeftRight: true,
+					rockUpDown: true,
+					rockRound: true,
+				},
+				mockLogger,
+			);
+		});
+
+		it('should maintain parity with existing attributes when supportsSwingMode is false', async () => {
+			// Arrange - regression test: all capabilities at default (false for new features)
+			capabilities = DEFAULT_AIR_CONDITIONER_CAPABILITIES;
+
+			const snapshot = new ThinqSnapshot({
+				'airState.operation': 1,
+				'airState.tempState.current': 22,
+				'airState.tempState.target': 24,
+				'airState.opMode': 0,
+				'airState.windStrength': 2,
+			});
+
+			const updateAttributeSpy = vi.spyOn(airConditioner, 'updateAttribute').mockResolvedValue(false);
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert - existing attributes unchanged
+			expect(updateAttributeSpy).toHaveBeenCalledWith(OnOff.id, 'onOff', true, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(TemperatureMeasurement.id, 'measuredValue', 2200, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'localTemperature', 2200, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'occupiedCoolingSetpoint', 2400, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'occupiedHeatingSetpoint', 2400, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(
+				Thermostat.id,
+				'systemMode',
+				Thermostat.SystemMode.Cool,
+				mockLogger,
+			);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(FanControl.id, 'fanMode', FanControl.FanMode.Low, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(FanControl.id, 'percentCurrent', 20, mockLogger);
+			// rockSetting should NOT be called
+			const rockSettingCalls = updateAttributeSpy.mock.calls.filter(
+				(call: any[]) => call[0] === FanControl.id && call[1] === 'rockSetting',
+			);
+			expect(rockSettingCalls).toHaveLength(0);
+		});
+	});
 });

@@ -108,6 +108,12 @@
 										"description": "Whether this device supports LED/display light control toggle.",
 										"type": "boolean",
 										"default": false
+									},
+									"supportsSwingMode": {
+										"title": "Supports Swing Mode",
+										"description": "Whether this device supports swing mode (vertical/horizontal vane control).",
+										"type": "boolean",
+										"default": false
 									}
 								}
 							}

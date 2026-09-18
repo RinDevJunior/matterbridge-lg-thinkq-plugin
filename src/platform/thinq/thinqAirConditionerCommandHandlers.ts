@@ -229,4 +229,63 @@ export function registerAirConditionerCommandHandlers(
 		},
 		airConditioner.log,
 	);
+
+	if (capabilities.supportsSwingMode) {
+		airConditioner.subscribeAttribute(
+			FanControl,
+			'rockSetting',
+			(newValue: unknown, oldValue: unknown, context) => {
+				if (context.fabric === undefined) {
+					return;
+				}
+
+				const newRock = newValue as Record<string, boolean> | undefined;
+				const oldRock = oldValue as Record<string, boolean> | undefined;
+
+				logger.debug(
+					`ThinQ AirConditioner ${device.id}: 'rockSetting' command handler invoked, newValue=${JSON.stringify(newRock)}, capabilities=${JSON.stringify(capabilities)}`,
+				);
+
+				if (!newRock || !oldRock) {
+					return;
+				}
+
+				const verticalChanged = newRock.rockUpDown !== oldRock.rockUpDown;
+				const horizontalChanged = newRock.rockLeftRight !== oldRock.rockLeftRight;
+
+				if (!verticalChanged && !horizontalChanged) {
+					return;
+				}
+
+				void withErrorHandling('rockSetting', logger, async () => {
+					if (verticalChanged && horizontalChanged && newRock.rockUpDown && newRock.rockLeftRight) {
+						await apiClient.sendCommand(device.id, {
+							dataKey: null,
+							dataValue: null,
+							command: 'Set',
+							ctrlKey: 'favoriteCtrl',
+							dataSetList: {
+								'airState.wDir.vStep': '100',
+								'airState.wDir.hStep': '100',
+							},
+						});
+					} else {
+						if (verticalChanged) {
+							await apiClient.sendCommand(device.id, {
+								dataKey: 'airState.wDir.vStep',
+								dataValue: newRock.rockUpDown ? '100' : '0',
+							});
+						}
+						if (horizontalChanged) {
+							await apiClient.sendCommand(device.id, {
+								dataKey: 'airState.wDir.hStep',
+								dataValue: newRock.rockLeftRight ? '100' : '0',
+							});
+						}
+					}
+				})();
+			},
+			airConditioner.log,
+		);
+	}
 }

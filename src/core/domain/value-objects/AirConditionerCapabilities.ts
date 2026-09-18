@@ -10,6 +10,7 @@ export interface AirConditionerCapabilities {
 	readonly supportsEnergySaveMode: boolean;
 	readonly supportsAirCleanMode: boolean;
 	readonly supportsLedControl: boolean;
+	readonly supportsSwingMode: boolean;
 }
 
 export const DEFAULT_AIR_CONDITIONER_CAPABILITIES: AirConditionerCapabilities = {
@@ -21,6 +22,7 @@ export const DEFAULT_AIR_CONDITIONER_CAPABILITIES: AirConditionerCapabilities = 
 	supportsEnergySaveMode: false,
 	supportsAirCleanMode: false,
 	supportsLedControl: false,
+	supportsSwingMode: false,
 };
 
 /**
@@ -47,5 +49,6 @@ export function resolveAirConditionerCapabilities(
 		supportsAirCleanMode:
 			capabilities?.supportsAirCleanMode ?? DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsAirCleanMode,
 		supportsLedControl: capabilities?.supportsLedControl ?? DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsLedControl,
+		supportsSwingMode: capabilities?.supportsSwingMode ?? DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsSwingMode,
 	};
 }

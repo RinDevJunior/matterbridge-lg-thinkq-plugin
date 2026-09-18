@@ -53,6 +53,14 @@ export class ThinqSnapshot {
 		return Number(this.data['airState.lightingState.displayControl']) === 1;
 	}
 
+	public get isVerticalSwingOn(): boolean {
+		return Number(this.data['airState.wDir.vStep']) === 100;
+	}
+
+	public get isHorizontalSwingOn(): boolean {
+		return Number(this.data['airState.wDir.hStep']) === 100;
+	}
+
 	private readNumber(key: string): number | undefined {
 		const value = this.data[key];
 		return typeof value === 'number' ? value : undefined;

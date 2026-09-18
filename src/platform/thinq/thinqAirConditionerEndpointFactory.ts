@@ -72,7 +72,19 @@ export function buildAirConditionerEndpoint(
 	}
 	endpoint.createDefaultThermostatUserInterfaceConfigurationClusterServer();
 
-	if (capabilities.supportsFanSpeedControl) {
+	if (capabilities.supportsFanSpeedControl && capabilities.supportsSwingMode) {
+		endpoint.createCompleteFanControlClusterServer(
+			initialFanMode,
+			FanControl.FanModeSequence.OffLowMedHighAuto,
+			0,
+			0,
+			undefined,
+			undefined,
+			undefined,
+			{ rockLeftRight: true, rockUpDown: true, rockRound: true },
+			{ rockLeftRight: false, rockUpDown: false, rockRound: false },
+		);
+	} else if (capabilities.supportsFanSpeedControl) {
 		endpoint.createDefaultFanControlClusterServer(initialFanMode, FanControl.FanModeSequence.OffLowMedHighAuto, 0, 0);
 	} else {
 		endpoint.createOnOffFanControlClusterServer(initialFanMode);

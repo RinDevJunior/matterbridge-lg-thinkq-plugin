@@ -140,6 +140,19 @@ export async function applyThinqSnapshotToAirConditioner(
 		if (percentCurrent !== undefined) {
 			await airConditioner.updateAttribute(FanControl.id, 'percentCurrent', percentCurrent, logger);
 		}
+
+		if (capabilities.supportsSwingMode) {
+			await airConditioner.updateAttribute(
+				FanControl.id,
+				'rockSetting',
+				{
+					rockLeftRight: snapshot.isHorizontalSwingOn,
+					rockUpDown: snapshot.isVerticalSwingOn,
+					rockRound: snapshot.isVerticalSwingOn && snapshot.isHorizontalSwingOn,
+				},
+				logger,
+			);
+		}
 	} else {
 		await airConditioner.updateAttribute(
 			FanControl.id,

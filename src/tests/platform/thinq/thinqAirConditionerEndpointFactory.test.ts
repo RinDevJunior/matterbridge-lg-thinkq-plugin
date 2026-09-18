@@ -44,6 +44,7 @@ function createChainableMock() {
 		createDefaultCoolingThermostatClusterServer: vi.fn().mockReturnThis(),
 		createDefaultThermostatUserInterfaceConfigurationClusterServer: vi.fn().mockReturnThis(),
 		createDefaultFanControlClusterServer: vi.fn().mockReturnThis(),
+		createCompleteFanControlClusterServer: vi.fn().mockReturnThis(),
 		createOnOffFanControlClusterServer: vi.fn().mockReturnThis(),
 	};
 }
@@ -392,6 +393,92 @@ describe('buildAirConditionerEndpoint', () => {
 
 			// Assert
 			expect(auxiliaryToggleModule.addAuxiliaryToggleEndpoints).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe('swing mode (Phase B)', () => {
+		it('should call createCompleteFanControlClusterServer when supportsFanSpeedControl and supportsSwingMode are both true', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsSwingMode: true,
+			});
+
+			const initialFanMode = FanControl.FanMode.Low;
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, initialFanMode);
+
+			// Assert
+			expect(mockEndpoint.createCompleteFanControlClusterServer).toHaveBeenCalledWith(
+				initialFanMode,
+				FanControl.FanModeSequence.OffLowMedHighAuto,
+				0,
+				0,
+				undefined,
+				undefined,
+				undefined,
+				{ rockLeftRight: true, rockUpDown: true, rockRound: true },
+				{ rockLeftRight: false, rockUpDown: false, rockRound: false },
+			);
+		});
+
+		it('should not call createDefaultFanControlClusterServer when supportsSwingMode is true', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsSwingMode: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			expect(mockEndpoint.createDefaultFanControlClusterServer).not.toHaveBeenCalled();
+		});
+
+		it('should call createDefaultFanControlClusterServer when supportsFanSpeedControl is true but supportsSwingMode is false', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsSwingMode: false,
+			});
+
+			const initialFanMode = FanControl.FanMode.Low;
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, initialFanMode);
+
+			// Assert
+			expect(mockEndpoint.createDefaultFanControlClusterServer).toHaveBeenCalledWith(
+				initialFanMode,
+				FanControl.FanModeSequence.OffLowMedHighAuto,
+				0,
+				0,
+			);
+			expect(mockEndpoint.createCompleteFanControlClusterServer).not.toHaveBeenCalled();
+		});
+
+		it('should call createOnOffFanControlClusterServer when supportsFanSpeedControl is false, even if supportsSwingMode is true', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: false,
+				supportsSwingMode: true,
+			});
+
+			const initialFanMode = FanControl.FanMode.Low;
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, initialFanMode);
+
+			// Assert
+			expect(mockEndpoint.createOnOffFanControlClusterServer).toHaveBeenCalledWith(initialFanMode);
+			expect(mockEndpoint.createCompleteFanControlClusterServer).not.toHaveBeenCalled();
+			expect(mockEndpoint.createDefaultFanControlClusterServer).not.toHaveBeenCalled();
 		});
 	});
 });

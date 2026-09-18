@@ -9,6 +9,7 @@ export interface ThinqDeviceCapabilityConfig {
 	supportsEnergySaveMode?: boolean;
 	supportsAirCleanMode?: boolean;
 	supportsLedControl?: boolean;
+	supportsSwingMode?: boolean;
 }
 
 export interface ThinqDeviceConfigEntry {

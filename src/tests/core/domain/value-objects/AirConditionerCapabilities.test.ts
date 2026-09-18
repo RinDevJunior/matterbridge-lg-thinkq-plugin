@@ -181,6 +181,7 @@ describe('AirConditionerCapabilities', () => {
 				supportsEnergySaveMode: false,
 				supportsAirCleanMode: false,
 				supportsLedControl: false,
+				supportsSwingMode: false,
 			});
 		});
 
@@ -420,6 +421,75 @@ describe('AirConditionerCapabilities', () => {
 			expect(result002.supportsQuietMode).toBe(true);
 			expect(result003.supportsEnergySaveMode).toBe(true);
 			expect(result003.supportsJetMode).toBe(false);
+		});
+
+		it('should default supportsSwingMode to false when undefined (Phase B)', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [{ deviceId: 'device-123', capabilities: {} }];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsSwingMode).toBe(false);
+		});
+
+		it('should override supportsSwingMode when specified as true (Phase B)', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: { supportsSwingMode: true },
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsSwingMode).toBe(true);
+			// Verify other flags remain at their defaults
+			expect(result.supportsHeat).toBe(true);
+			expect(result.supportsFanSpeedControl).toBe(true);
+			expect(result.supportsJetMode).toBe(false);
+		});
+
+		it('should override supportsSwingMode when specified as false (Phase B)', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: { supportsSwingMode: false },
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsSwingMode).toBe(false);
+		});
+
+		it('should combine supportsSwingMode with other Phase B flags (Phase B)', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: {
+						supportsSwingMode: true,
+						supportsJetMode: true,
+						supportsQuietMode: true,
+					},
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsSwingMode).toBe(true);
+			expect(result.supportsJetMode).toBe(true);
+			expect(result.supportsQuietMode).toBe(true);
 		});
 	});
 });
