@@ -1,10 +1,17 @@
 import { AnsiLogger } from 'matterbridge/logger';
 
-import { isValidThinqDeviceId, ThinqDevice, toThinqDevice } from '../../core/domain/entities/ThinqDevice.js';
+import {
+	isAirConditionerDevice,
+	isValidThinqDeviceId,
+	ThinqDevice,
+	toThinqDevice,
+} from '../../core/domain/entities/ThinqDevice.js';
 import type { ThinqSnapshot } from '../../core/domain/value-objects/ThinqSnapshot.js';
 import { ThinqApiClient } from './thinqApiClient.js';
 
 export type ThinqDeviceUpdateListener = (deviceId: string, snapshot: ThinqSnapshot) => void;
+
+export const THINQ_KEEP_ALIVE_INTERVAL_MS = 60000;
 
 /**
  * Discovers ThinQ devices and polls their state. Polling runs alongside a separate `ThinqMqttListener`
@@ -14,6 +21,8 @@ export type ThinqDeviceUpdateListener = (deviceId: string, snapshot: ThinqSnapsh
 export class ThinqDeviceService {
 	private pollTimer: NodeJS.Timeout | undefined;
 	private pollTickCount = 0;
+	private keepAliveTimer: NodeJS.Timeout | undefined;
+	private airConditionerOnlineStatus = new Map<string, boolean>();
 
 	constructor(
 		private readonly apiClient: ThinqApiClient,
@@ -44,11 +53,44 @@ export class ThinqDeviceService {
 		}
 	}
 
+	public startKeepAlive(intervalMs: number = THINQ_KEEP_ALIVE_INTERVAL_MS): void {
+		this.stopKeepAlive();
+		this.logger.debug(`ThinQ keep-alive: starting with interval=${intervalMs}ms`);
+		this.keepAliveTimer = setInterval(() => {
+			void this.keepAliveOnce();
+		}, intervalMs);
+	}
+
+	public stopKeepAlive(): void {
+		if (this.keepAliveTimer) {
+			clearInterval(this.keepAliveTimer);
+			this.keepAliveTimer = undefined;
+			this.logger.debug(`ThinQ keep-alive: stopped`);
+		}
+	}
+
+	private async keepAliveOnce(): Promise<void> {
+		this.logger.debug(`ThinQ keep-alive: tick at ${new Date().toISOString()}`);
+		for (const [deviceId, online] of this.airConditionerOnlineStatus.entries()) {
+			if (!online) {
+				continue;
+			}
+			try {
+				await this.apiClient.sendKeepAlive(deviceId);
+			} catch (error) {
+				this.logger.debug(
+					`ThinQ keep-alive failed for ${deviceId}: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			}
+		}
+	}
+
 	private async pollOnce(onUpdate: ThinqDeviceUpdateListener): Promise<void> {
 		this.pollTickCount += 1;
 		this.logger.debug(`ThinQ polling: tick #${this.pollTickCount} at ${new Date().toISOString()}`);
 		try {
 			const devices = await this.discoverDevices();
+			this.airConditionerOnlineStatus = new Map(devices.filter(isAirConditionerDevice).map((d) => [d.id, d.online]));
 			for (const device of devices) {
 				onUpdate(device.id, device.snapshot);
 			}

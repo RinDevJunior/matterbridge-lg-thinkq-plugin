@@ -150,6 +150,7 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 
 		this.thinqPollingIntervalMs = this.configManager.thinqRefreshIntervalSeconds * 1000;
 		this.thinqServices.getDeviceService().startPolling(this.thinqPollingIntervalMs, applyDeviceUpdate);
+		this.thinqServices.getDeviceService().startKeepAlive();
 		void this.thinqServices
 			.getMqttListener()
 			.start(applyDeviceUpdate)
@@ -167,6 +168,7 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 		this.log.notice('onShutdown called with reason:', reason ?? 'none');
 
 		this.thinqServices.getDeviceService().stopPolling();
+		this.thinqServices.getDeviceService().stopKeepAlive();
 		this.thinqServices.getMqttListener().stop();
 
 		if (this.configManager.unregisterOnShutdown) {
