@@ -23,6 +23,17 @@ describe('AirConditionerCapabilities', () => {
 			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsAirCleanMode).toBe(false);
 			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsLedControl).toBe(false);
 		});
+
+		it('should have Phase B swing mode capability set to false (opt-in)', () => {
+			// Assert
+			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsSwingMode).toBe(false);
+		});
+
+		it('should have Phase C sensor capabilities set to false (opt-in)', () => {
+			// Assert
+			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsHumiditySensor).toBe(false);
+			expect(DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsAirQualitySensor).toBe(false);
+		});
 	});
 
 	describe('resolveAirConditionerCapabilities', () => {
@@ -182,6 +193,8 @@ describe('AirConditionerCapabilities', () => {
 				supportsAirCleanMode: false,
 				supportsLedControl: false,
 				supportsSwingMode: false,
+				supportsHumiditySensor: false,
+				supportsAirQualitySensor: false,
 			});
 		});
 
@@ -490,6 +503,155 @@ describe('AirConditionerCapabilities', () => {
 			expect(result.supportsSwingMode).toBe(true);
 			expect(result.supportsJetMode).toBe(true);
 			expect(result.supportsQuietMode).toBe(true);
+		});
+
+		it('should default supportsHumiditySensor to false when undefined (Phase C)', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [{ deviceId: 'device-123', capabilities: {} }];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsHumiditySensor).toBe(false);
+		});
+
+		it('should override supportsHumiditySensor when specified as true (Phase C)', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: { supportsHumiditySensor: true },
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsHumiditySensor).toBe(true);
+			// Verify other flags remain at their defaults
+			expect(result.supportsHeat).toBe(true);
+			expect(result.supportsFanSpeedControl).toBe(true);
+			expect(result.supportsAirQualitySensor).toBe(false);
+		});
+
+		it('should default supportsAirQualitySensor to false when undefined (Phase C)', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [{ deviceId: 'device-123', capabilities: {} }];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsAirQualitySensor).toBe(false);
+		});
+
+		it('should override supportsAirQualitySensor when specified as true (Phase C)', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: { supportsAirQualitySensor: true },
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsAirQualitySensor).toBe(true);
+			// Verify other flags remain at their defaults
+			expect(result.supportsHeat).toBe(true);
+			expect(result.supportsFanSpeedControl).toBe(true);
+			expect(result.supportsHumiditySensor).toBe(false);
+		});
+
+		it('should enable both Phase C sensor flags simultaneously', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: {
+						supportsHumiditySensor: true,
+						supportsAirQualitySensor: true,
+					},
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result.supportsHumiditySensor).toBe(true);
+			expect(result.supportsAirQualitySensor).toBe(true);
+			// Verify existing flags still default to true
+			expect(result.supportsHeat).toBe(true);
+			expect(result.supportsDry).toBe(true);
+			expect(result.supportsFanSpeedControl).toBe(true);
+		});
+
+		it('should isolate Phase C sensor flags across multiple devices', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-001',
+					capabilities: { supportsHumiditySensor: true },
+				},
+				{
+					deviceId: 'device-002',
+					capabilities: { supportsAirQualitySensor: true },
+				},
+				{
+					deviceId: 'device-003',
+					capabilities: {},
+				},
+			];
+
+			// Act
+			const result001 = resolveAirConditionerCapabilities(devices, 'device-001');
+			const result002 = resolveAirConditionerCapabilities(devices, 'device-002');
+			const result003 = resolveAirConditionerCapabilities(devices, 'device-003');
+
+			// Assert
+			expect(result001.supportsHumiditySensor).toBe(true);
+			expect(result001.supportsAirQualitySensor).toBe(false);
+			expect(result002.supportsHumiditySensor).toBe(false);
+			expect(result002.supportsAirQualitySensor).toBe(true);
+			expect(result003.supportsHumiditySensor).toBe(false);
+			expect(result003.supportsAirQualitySensor).toBe(false);
+		});
+
+		it('should preserve full default object with all Phase C flags included', () => {
+			// Arrange
+			const devices: ThinqDeviceConfigEntry[] = [
+				{
+					deviceId: 'device-123',
+					capabilities: {
+						supportsHeat: true,
+						supportsDry: true,
+						supportsFanSpeedControl: true,
+					},
+				},
+			];
+
+			// Act
+			const result = resolveAirConditionerCapabilities(devices, 'device-123');
+
+			// Assert
+			expect(result).toEqual({
+				supportsHeat: true,
+				supportsDry: true,
+				supportsFanSpeedControl: true,
+				supportsJetMode: false,
+				supportsQuietMode: false,
+				supportsEnergySaveMode: false,
+				supportsAirCleanMode: false,
+				supportsLedControl: false,
+				supportsSwingMode: false,
+				supportsHumiditySensor: false,
+				supportsAirQualitySensor: false,
+			});
 		});
 	});
 });

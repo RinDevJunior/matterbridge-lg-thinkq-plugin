@@ -789,5 +789,396 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 			);
 			expect(rockSettingCalls).toHaveLength(0);
 		});
+
+		describe('applyThinqSnapshotToAirConditioner with humidity and air quality sensors (Phase C)', () => {
+			let mockLogger: ReturnType<typeof createMockLogger>;
+			let airConditioner: any;
+			let capabilities: AirConditionerCapabilities;
+
+			beforeEach(() => {
+				vi.clearAllMocks();
+				mockLogger = createMockLogger();
+
+				airConditioner = {
+					id: 0x01,
+					name: 'Living Room AC',
+					log: mockLogger,
+					updateAttribute: vi.fn().mockResolvedValue(false),
+					getChildEndpointById: vi.fn(),
+				};
+			});
+
+			afterEach(() => {
+				vi.clearAllMocks();
+			});
+
+			it('should update humidity sensor when supportsHumiditySensor is enabled and humidityPercent is defined', async () => {
+				// Arrange
+				capabilities = {
+					...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+					supportsHumiditySensor: true,
+				};
+
+				const mockChild = {
+					updateAttribute: vi.fn().mockResolvedValue(false),
+				};
+				airConditioner.getChildEndpointById.mockReturnValue(mockChild);
+
+				const snapshot = new ThinqSnapshot({
+					'airState.operation': 1,
+					'airState.tempState.current': 22,
+					'airState.tempState.target': 24,
+					'airState.opMode': 0,
+					'airState.windStrength': 2,
+					'airState.humidity.current': 65,
+				});
+
+				// Act
+				await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+				// Assert
+				expect(airConditioner.getChildEndpointById).toHaveBeenCalledWith('HumiditySensor');
+				expect(mockChild.updateAttribute).toHaveBeenCalledWith(expect.any(Number), 'measuredValue', 6500, mockLogger);
+			});
+
+			it('should apply humidity heuristic when value > 100', async () => {
+				// Arrange
+				capabilities = {
+					...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+					supportsHumiditySensor: true,
+				};
+
+				const mockChild = {
+					updateAttribute: vi.fn().mockResolvedValue(false),
+				};
+				airConditioner.getChildEndpointById.mockReturnValue(mockChild);
+
+				const snapshot = new ThinqSnapshot({
+					'airState.operation': 1,
+					'airState.tempState.current': 22,
+					'airState.tempState.target': 24,
+					'airState.opMode': 0,
+					'airState.windStrength': 2,
+					'airState.humidity.current': 650,
+				});
+
+				// Act
+				await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+				// Assert
+				expect(mockChild.updateAttribute).toHaveBeenCalledWith(
+					expect.any(Number),
+					'measuredValue',
+					6500, // 65 * 100
+					mockLogger,
+				);
+			});
+
+			it('should not push humidity sensor when humidityPercent is undefined even if capability is enabled', async () => {
+				// Arrange
+				capabilities = {
+					...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+					supportsHumiditySensor: true,
+				};
+
+				const mockChild = {
+					updateAttribute: vi.fn().mockResolvedValue(false),
+				};
+				airConditioner.getChildEndpointById.mockReturnValue(mockChild);
+
+				const snapshot = new ThinqSnapshot({
+					'airState.operation': 1,
+					'airState.tempState.current': 22,
+					'airState.tempState.target': 24,
+					'airState.opMode': 0,
+					'airState.windStrength': 2,
+					// humidity key absent
+				});
+
+				// Act
+				await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+				// Assert
+				// Child should not be retrieved since humidity is undefined (defensive check prevents child lookup)
+				expect(airConditioner.getChildEndpointById).not.toHaveBeenCalledWith('HumiditySensor');
+				expect(mockChild.updateAttribute).not.toHaveBeenCalled();
+			});
+
+			it('should not attempt humidity push when supportsHumiditySensor is disabled', async () => {
+				// Arrange
+				capabilities = {
+					...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+					supportsHumiditySensor: false,
+				};
+
+				const snapshot = new ThinqSnapshot({
+					'airState.operation': 1,
+					'airState.tempState.current': 22,
+					'airState.tempState.target': 24,
+					'airState.opMode': 0,
+					'airState.windStrength': 2,
+					'airState.humidity.current': 65,
+				});
+
+				// Act
+				await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+				// Assert
+				expect(airConditioner.getChildEndpointById).not.toHaveBeenCalledWith('HumiditySensor');
+			});
+
+			it('should handle missing HumiditySensor child endpoint gracefully', async () => {
+				// Arrange
+				capabilities = {
+					...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+					supportsHumiditySensor: true,
+				};
+
+				airConditioner.getChildEndpointById.mockReturnValue(undefined); // child doesn't exist
+
+				const snapshot = new ThinqSnapshot({
+					'airState.operation': 1,
+					'airState.tempState.current': 22,
+					'airState.tempState.target': 24,
+					'airState.opMode': 0,
+					'airState.windStrength': 2,
+					'airState.humidity.current': 65,
+				});
+
+				// Act & Assert - should not throw
+				await expect(
+					applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger),
+				).resolves.not.toThrow();
+				expect(airConditioner.getChildEndpointById).toHaveBeenCalledWith('HumiditySensor');
+			});
+
+			it('should update air quality sensor when supportsAirQualitySensor is enabled and all values are defined', async () => {
+				// Arrange
+				capabilities = {
+					...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+					supportsAirQualitySensor: true,
+				};
+
+				const mockChild = {
+					updateAttribute: vi.fn().mockResolvedValue(false),
+				};
+				airConditioner.getChildEndpointById.mockReturnValue(mockChild);
+
+				const snapshot = new ThinqSnapshot({
+					'airState.operation': 1,
+					'airState.tempState.current': 22,
+					'airState.tempState.target': 24,
+					'airState.opMode': 0,
+					'airState.windStrength': 2,
+					'airState.quality.overall': 3,
+					'airState.quality.PM2': 25,
+					'airState.quality.PM10': 50,
+				});
+
+				// Act
+				await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+				// Assert
+				expect(airConditioner.getChildEndpointById).toHaveBeenCalledWith('AirQualitySensor');
+				expect(mockChild.updateAttribute).toHaveBeenCalledWith(expect.any(Number), 'airQuality', 3, mockLogger);
+				expect(mockChild.updateAttribute).toHaveBeenCalledWith(expect.any(Number), 'measuredValue', 25, mockLogger);
+				expect(mockChild.updateAttribute).toHaveBeenCalledWith(expect.any(Number), 'measuredValue', 50, mockLogger);
+			});
+
+			it('should only push air quality overall when PM values are undefined', async () => {
+				// Arrange
+				capabilities = {
+					...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+					supportsAirQualitySensor: true,
+				};
+
+				const mockChild = {
+					updateAttribute: vi.fn().mockResolvedValue(false),
+				};
+				airConditioner.getChildEndpointById.mockReturnValue(mockChild);
+
+				const snapshot = new ThinqSnapshot({
+					'airState.operation': 1,
+					'airState.tempState.current': 22,
+					'airState.tempState.target': 24,
+					'airState.opMode': 0,
+					'airState.windStrength': 2,
+					'airState.quality.overall': 2,
+					// PM2 and PM10 absent
+				});
+
+				// Act
+				await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+				// Assert
+				expect(mockChild.updateAttribute).toHaveBeenCalledWith(expect.any(Number), 'airQuality', 2, mockLogger);
+				// PM updates should not happen
+				const pmCalls = mockChild.updateAttribute.mock.calls.filter((call: any[]) => call[1] === 'measuredValue');
+				expect(pmCalls).toHaveLength(0);
+			});
+
+			it('should not push air quality when all values are undefined even if capability is enabled', async () => {
+				// Arrange
+				capabilities = {
+					...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+					supportsAirQualitySensor: true,
+				};
+
+				const mockChild = {
+					updateAttribute: vi.fn().mockResolvedValue(false),
+				};
+				airConditioner.getChildEndpointById.mockReturnValue(mockChild);
+
+				const snapshot = new ThinqSnapshot({
+					'airState.operation': 1,
+					'airState.tempState.current': 22,
+					'airState.tempState.target': 24,
+					'airState.opMode': 0,
+					'airState.windStrength': 2,
+					// all quality values absent
+				});
+
+				// Act
+				await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+				// Assert
+				expect(airConditioner.getChildEndpointById).toHaveBeenCalledWith('AirQualitySensor');
+				expect(mockChild.updateAttribute).not.toHaveBeenCalled();
+			});
+
+			it('should not attempt air quality push when supportsAirQualitySensor is disabled', async () => {
+				// Arrange
+				capabilities = {
+					...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+					supportsAirQualitySensor: false,
+				};
+
+				const snapshot = new ThinqSnapshot({
+					'airState.operation': 1,
+					'airState.tempState.current': 22,
+					'airState.tempState.target': 24,
+					'airState.opMode': 0,
+					'airState.windStrength': 2,
+					'airState.quality.overall': 3,
+					'airState.quality.PM2': 25,
+					'airState.quality.PM10': 50,
+				});
+
+				// Act
+				await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+				// Assert
+				expect(airConditioner.getChildEndpointById).not.toHaveBeenCalledWith('AirQualitySensor');
+			});
+
+			it('should handle missing AirQualitySensor child endpoint gracefully', async () => {
+				// Arrange
+				capabilities = {
+					...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+					supportsAirQualitySensor: true,
+				};
+
+				airConditioner.getChildEndpointById.mockReturnValue(undefined); // child doesn't exist
+
+				const snapshot = new ThinqSnapshot({
+					'airState.operation': 1,
+					'airState.tempState.current': 22,
+					'airState.tempState.target': 24,
+					'airState.opMode': 0,
+					'airState.windStrength': 2,
+					'airState.quality.overall': 3,
+					'airState.quality.PM2': 25,
+					'airState.quality.PM10': 50,
+				});
+
+				// Act & Assert - should not throw
+				await expect(
+					applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger),
+				).resolves.not.toThrow();
+				expect(airConditioner.getChildEndpointById).toHaveBeenCalledWith('AirQualitySensor');
+			});
+
+			it('should push both humidity and air quality sensors when both capabilities are enabled', async () => {
+				// Arrange
+				capabilities = {
+					...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+					supportsHumiditySensor: true,
+					supportsAirQualitySensor: true,
+				};
+
+				const mockHumidityChild = {
+					updateAttribute: vi.fn().mockResolvedValue(false),
+				};
+				const mockAirQualityChild = {
+					updateAttribute: vi.fn().mockResolvedValue(false),
+				};
+
+				airConditioner.getChildEndpointById.mockImplementation((id: string) => {
+					if (id === 'HumiditySensor') return mockHumidityChild;
+					if (id === 'AirQualitySensor') return mockAirQualityChild;
+					return undefined;
+				});
+
+				const snapshot = new ThinqSnapshot({
+					'airState.operation': 1,
+					'airState.tempState.current': 22,
+					'airState.tempState.target': 24,
+					'airState.opMode': 0,
+					'airState.windStrength': 2,
+					'airState.humidity.current': 65,
+					'airState.quality.overall': 3,
+					'airState.quality.PM2': 25,
+					'airState.quality.PM10': 50,
+				});
+
+				// Act
+				await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+				// Assert
+				expect(airConditioner.getChildEndpointById).toHaveBeenCalledWith('HumiditySensor');
+				expect(airConditioner.getChildEndpointById).toHaveBeenCalledWith('AirQualitySensor');
+				expect(mockHumidityChild.updateAttribute).toHaveBeenCalled();
+				expect(mockAirQualityChild.updateAttribute).toHaveBeenCalled();
+			});
+
+			it('should maintain full regression parity with default capabilities (all sensors disabled)', async () => {
+				// Arrange
+				capabilities = DEFAULT_AIR_CONDITIONER_CAPABILITIES; // all new flags = false
+
+				const snapshot = new ThinqSnapshot({
+					'airState.operation': 1,
+					'airState.tempState.current': 22,
+					'airState.tempState.target': 24,
+					'airState.opMode': 0, // COOL
+					'airState.windStrength': 2, // LOW
+					'airState.humidity.current': 65,
+					'airState.quality.overall': 3,
+					'airState.quality.PM2': 25,
+					'airState.quality.PM10': 50,
+				});
+
+				const updateAttributeSpy = vi.spyOn(airConditioner, 'updateAttribute').mockResolvedValue(false);
+
+				// Act
+				await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+				// Assert - only the existing attributes should be updated
+				expect(updateAttributeSpy).toHaveBeenCalledWith(OnOff.id, 'onOff', true, mockLogger);
+				expect(updateAttributeSpy).toHaveBeenCalledWith(TemperatureMeasurement.id, 'measuredValue', 2200, mockLogger);
+				expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'localTemperature', 2200, mockLogger);
+				expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'occupiedCoolingSetpoint', 2400, mockLogger);
+				expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'occupiedHeatingSetpoint', 2400, mockLogger);
+				expect(updateAttributeSpy).toHaveBeenCalledWith(
+					Thermostat.id,
+					'systemMode',
+					Thermostat.SystemMode.Cool,
+					mockLogger,
+				);
+				expect(updateAttributeSpy).toHaveBeenCalledWith(FanControl.id, 'fanMode', FanControl.FanMode.Low, mockLogger);
+				expect(updateAttributeSpy).toHaveBeenCalledWith(FanControl.id, 'percentCurrent', 20, mockLogger);
+				// No sensor child endpoint calls should happen
+				expect(airConditioner.getChildEndpointById).not.toHaveBeenCalled();
+			});
+		});
 	});
 });

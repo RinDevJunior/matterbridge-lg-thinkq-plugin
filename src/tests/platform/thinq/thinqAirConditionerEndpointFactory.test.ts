@@ -28,6 +28,8 @@ vi.mock('matterbridge', () => ({
 	MatterbridgeEndpoint: MatterbridgeEndpointMockFn,
 	roomAirConditioner: { id: 'roomAirConditioner' },
 	powerSource: { id: 'powerSource' },
+	humiditySensor: { id: 'humiditySensor' },
+	airQualitySensor: { id: 'airQualitySensor' },
 }));
 
 vi.mock('../../../platform/thinq/thinqAirConditionerAuxiliaryToggles.js', () => ({
@@ -46,6 +48,11 @@ function createChainableMock() {
 		createDefaultFanControlClusterServer: vi.fn().mockReturnThis(),
 		createCompleteFanControlClusterServer: vi.fn().mockReturnThis(),
 		createOnOffFanControlClusterServer: vi.fn().mockReturnThis(),
+		addChildDeviceType: vi.fn().mockReturnThis(),
+		createDefaultRelativeHumidityMeasurementClusterServer: vi.fn().mockReturnThis(),
+		createDefaultAirQualityClusterServer: vi.fn().mockReturnThis(),
+		createDefaultPm25ConcentrationMeasurementClusterServer: vi.fn().mockReturnThis(),
+		createDefaultPm10ConcentrationMeasurementClusterServer: vi.fn().mockReturnThis(),
 	};
 }
 
@@ -479,6 +486,199 @@ describe('buildAirConditionerEndpoint', () => {
 			expect(mockEndpoint.createOnOffFanControlClusterServer).toHaveBeenCalledWith(initialFanMode);
 			expect(mockEndpoint.createCompleteFanControlClusterServer).not.toHaveBeenCalled();
 			expect(mockEndpoint.createDefaultFanControlClusterServer).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('humidity sensor child endpoint (Phase C)', () => {
+		it('should create HumiditySensor child endpoint when supportsHumiditySensor is true', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsHumiditySensor: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			expect(mockEndpoint.addChildDeviceType).toHaveBeenCalledWith('HumiditySensor', expect.any(Array));
+		});
+
+		it('should create RelativeHumidityMeasurementClusterServer on HumiditySensor child', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsHumiditySensor: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			expect(mockEndpoint.createDefaultRelativeHumidityMeasurementClusterServer).toHaveBeenCalledWith(0);
+		});
+
+		it('should not create HumiditySensor child endpoint when supportsHumiditySensor is false', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsHumiditySensor: false,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			const calls = (mockEndpoint.addChildDeviceType as any).mock.calls;
+			const humidityCallExists = calls.some((call: any[]) => call[0] === 'HumiditySensor');
+			expect(humidityCallExists).toBe(false);
+		});
+
+		it('should not call createDefaultRelativeHumidityMeasurementClusterServer when supportsHumiditySensor is false', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsHumiditySensor: false,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			expect(mockEndpoint.createDefaultRelativeHumidityMeasurementClusterServer).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('air quality sensor child endpoint (Phase C)', () => {
+		it('should create AirQualitySensor child endpoint when supportsAirQualitySensor is true', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsAirQualitySensor: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			expect(mockEndpoint.addChildDeviceType).toHaveBeenCalledWith('AirQualitySensor', expect.any(Array));
+		});
+
+		it('should create AirQualityClusterServer on AirQualitySensor child', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsAirQualitySensor: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			expect(mockEndpoint.createDefaultAirQualityClusterServer).toHaveBeenCalled();
+		});
+
+		it('should create PM2.5 ConcentrationMeasurementClusterServer on AirQualitySensor child', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsAirQualitySensor: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			expect(mockEndpoint.createDefaultPm25ConcentrationMeasurementClusterServer).toHaveBeenCalled();
+		});
+
+		it('should create PM10 ConcentrationMeasurementClusterServer on AirQualitySensor child', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsAirQualitySensor: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			expect(mockEndpoint.createDefaultPm10ConcentrationMeasurementClusterServer).toHaveBeenCalled();
+		});
+
+		it('should not create AirQualitySensor child endpoint when supportsAirQualitySensor is false', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsAirQualitySensor: false,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			const calls = (mockEndpoint.addChildDeviceType as any).mock.calls;
+			const airQualityCallExists = calls.some((call: any[]) => call[0] === 'AirQualitySensor');
+			expect(airQualityCallExists).toBe(false);
+		});
+
+		it('should not call air quality cluster servers when supportsAirQualitySensor is false', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsAirQualitySensor: false,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			expect(mockEndpoint.createDefaultAirQualityClusterServer).not.toHaveBeenCalled();
+			expect(mockEndpoint.createDefaultPm25ConcentrationMeasurementClusterServer).not.toHaveBeenCalled();
+			expect(mockEndpoint.createDefaultPm10ConcentrationMeasurementClusterServer).not.toHaveBeenCalled();
+		});
+
+		it('should create both humidity and air quality sensors when both capabilities are enabled', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+				supportsHumiditySensor: true,
+				supportsAirQualitySensor: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			const calls = (mockEndpoint.addChildDeviceType as any).mock.calls;
+			expect(calls.some((call: any[]) => call[0] === 'HumiditySensor')).toBe(true);
+			expect(calls.some((call: any[]) => call[0] === 'AirQualitySensor')).toBe(true);
+		});
+
+		it('should maintain regression parity when both sensor capabilities are false (default)', () => {
+			// Arrange
+			const capabilities = { ...DEFAULT_AIR_CONDITIONER_CAPABILITIES };
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			const calls = (mockEndpoint.addChildDeviceType as any).mock.calls;
+			const hasHumiditySensor = calls.some((call: any[]) => call[0] === 'HumiditySensor');
+			const hasAirQualitySensor = calls.some((call: any[]) => call[0] === 'AirQualitySensor');
+			expect(hasHumiditySensor).toBe(false);
+			expect(hasAirQualitySensor).toBe(false);
 		});
 	});
 });

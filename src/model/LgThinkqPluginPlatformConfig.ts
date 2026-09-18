@@ -10,6 +10,8 @@ export interface ThinqDeviceCapabilityConfig {
 	supportsAirCleanMode?: boolean;
 	supportsLedControl?: boolean;
 	supportsSwingMode?: boolean;
+	supportsHumiditySensor?: boolean;
+	supportsAirQualitySensor?: boolean;
 }
 
 export interface ThinqDeviceConfigEntry {

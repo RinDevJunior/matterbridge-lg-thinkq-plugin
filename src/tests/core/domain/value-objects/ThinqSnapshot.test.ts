@@ -405,4 +405,172 @@ describe('ThinqSnapshot', () => {
 			expect(snapshot.isHorizontalSwingOn).toBe(false);
 		});
 	});
+
+	describe('humidityPercent (Phase C)', () => {
+		it('should return the value directly when <= 100', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.humidity.current': 55 });
+
+			// Assert
+			expect(snapshot.humidityPercent).toBe(55);
+		});
+
+		it('should return the value divided by 10 when > 100', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.humidity.current': 550 });
+
+			// Assert
+			expect(snapshot.humidityPercent).toBe(55);
+		});
+
+		it('should return exactly 100 when value is 100', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.humidity.current': 100 });
+
+			// Assert
+			expect(snapshot.humidityPercent).toBe(100);
+		});
+
+		it('should return undefined when key is absent', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({});
+
+			// Assert
+			expect(snapshot.humidityPercent).toBeUndefined();
+		});
+
+		it('should return undefined when value is not a number', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.humidity.current': '55' });
+
+			// Assert
+			expect(snapshot.humidityPercent).toBeUndefined();
+		});
+
+		it('should apply heuristic to large values (1000 → 100)', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.humidity.current': 1000 });
+
+			// Assert
+			expect(snapshot.humidityPercent).toBe(100);
+		});
+
+		it('should apply heuristic to small > 100 values (101 → 10.1)', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.humidity.current': 101 });
+
+			// Assert
+			expect(snapshot.humidityPercent).toBe(10.1);
+		});
+
+		it('should apply heuristic to common > 100 value (650 → 65)', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.humidity.current': 650 });
+
+			// Assert
+			expect(snapshot.humidityPercent).toBe(65);
+		});
+	});
+
+	describe('airQualityOverall (Phase C)', () => {
+		it('should return the number value when present', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.quality.overall': 3 });
+
+			// Assert
+			expect(snapshot.airQualityOverall).toBe(3);
+		});
+
+		it('should return undefined when key is absent', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({});
+
+			// Assert
+			expect(snapshot.airQualityOverall).toBeUndefined();
+		});
+
+		it('should return undefined when value is not a number', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.quality.overall': 'Good' });
+
+			// Assert
+			expect(snapshot.airQualityOverall).toBeUndefined();
+		});
+
+		it('should return 0 for poor air quality', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.quality.overall': 0 });
+
+			// Assert
+			expect(snapshot.airQualityOverall).toBe(0);
+		});
+	});
+
+	describe('pm25 (Phase C)', () => {
+		it('should return the number value when present', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.quality.PM2': 25 });
+
+			// Assert
+			expect(snapshot.pm25).toBe(25);
+		});
+
+		it('should return undefined when key is absent', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({});
+
+			// Assert
+			expect(snapshot.pm25).toBeUndefined();
+		});
+
+		it('should return undefined when value is not a number', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.quality.PM2': '25' });
+
+			// Assert
+			expect(snapshot.pm25).toBeUndefined();
+		});
+
+		it('should return 0 for zero PM2.5 reading', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.quality.PM2': 0 });
+
+			// Assert
+			expect(snapshot.pm25).toBe(0);
+		});
+	});
+
+	describe('pm10 (Phase C)', () => {
+		it('should return the number value when present', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.quality.PM10': 50 });
+
+			// Assert
+			expect(snapshot.pm10).toBe(50);
+		});
+
+		it('should return undefined when key is absent', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({});
+
+			// Assert
+			expect(snapshot.pm10).toBeUndefined();
+		});
+
+		it('should return undefined when value is not a number', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.quality.PM10': '50' });
+
+			// Assert
+			expect(snapshot.pm10).toBeUndefined();
+		});
+
+		it('should return 0 for zero PM10 reading', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.quality.PM10': 0 });
+
+			// Assert
+			expect(snapshot.pm10).toBe(0);
+		});
+	});
 });

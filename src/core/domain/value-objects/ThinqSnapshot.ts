@@ -61,6 +61,26 @@ export class ThinqSnapshot {
 		return Number(this.data['airState.wDir.hStep']) === 100;
 	}
 
+	public get humidityPercent(): number | undefined {
+		const value = this.readNumber('airState.humidity.current');
+		if (value === undefined) {
+			return undefined;
+		}
+		return value > 100 ? value / 10 : value;
+	}
+
+	public get airQualityOverall(): number | undefined {
+		return this.readNumber('airState.quality.overall');
+	}
+
+	public get pm25(): number | undefined {
+		return this.readNumber('airState.quality.PM2');
+	}
+
+	public get pm10(): number | undefined {
+		return this.readNumber('airState.quality.PM10');
+	}
+
 	private readNumber(key: string): number | undefined {
 		const value = this.data[key];
 		return typeof value === 'number' ? value : undefined;

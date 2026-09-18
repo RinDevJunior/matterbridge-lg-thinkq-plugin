@@ -114,6 +114,18 @@
 										"description": "Whether this device supports swing mode (vertical/horizontal vane control).",
 										"type": "boolean",
 										"default": false
+									},
+									"supportsHumiditySensor": {
+										"title": "Supports Humidity Sensor",
+										"description": "Whether this device reports humidity data.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsAirQualitySensor": {
+										"title": "Supports Air-Quality Sensor",
+										"description": "Whether this device reports air-quality (AQI, PM2.5, PM10) data.",
+										"type": "boolean",
+										"default": false
 									}
 								}
 							}
