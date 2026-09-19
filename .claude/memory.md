@@ -72,7 +72,7 @@ It is version-controlled — commit and push changes so teammates can pull the l
   `deviceProductNames[]` array. No `enableAdvancedFeature` flag exists in this repo (verified via grep,
   zero hits) — schema gates on `settings.overrideMatterConfiguration===true` alone via `dependencies`
   (this repo's own idiom, matching `thinq.dependencies.loginType`), not `allOf`. See `workspace/override-matter-configuration/plan.md`.
-- Energy on AC endpoint experiment (Sep 19, 2026): `electricalSensor` requires `PowerTopology` (M); existing child `EnergyMonitor` has none (`addRequiredClusterServers` is non-recursive) — likely why Apple ignores it. Opt-in `capabilities.energyMonitoringPlacement:'child'|'endpoint'`, check `=== 'endpoint'` only. See `workspace/energy-on-ac-endpoint/plan.md`.
+- Energy on AC endpoint experiment (Sep 19, 2026): `electricalSensor` requires `PowerTopology` (M); child `EnergyMonitor` lacked it (`addRequiredClusterServers` non-recursive) — user-approved fix: child now gets PowerTopology + activePower 0. Opt-in `capabilities.energyMonitoringPlacement:'child'|'endpoint'`, check `=== 'endpoint'` only. See `workspace/energy-on-ac-endpoint/plan.md`.
 
 ## Test Patterns
 
