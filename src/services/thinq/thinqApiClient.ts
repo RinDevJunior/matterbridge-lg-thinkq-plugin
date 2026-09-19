@@ -20,6 +20,12 @@ const GATEWAY_URL = 'https://route.lgthinq.com:46030/v1/service/application/gate
 export const MQTT_ROUTE_URL = 'https://common.lgthinq.com/route';
 const API_KEY = 'VGhpblEyLjAgU0VSVklDRQ==';
 const API_CLIENT_ID = 'c713ea8e50f657534ff8b9d373dfebfc2ed70b88285c26b8ade49868c0b164d9';
+/**
+ * LG's own signal that the ThinQ access token has expired, returned as HTTP 400 with this `resultCode`
+ * on some endpoints (e.g. `control-sync`) instead of a true 401. Mirrors `homebridge-lg-thinq`'s
+ * `TokenExpiredErrorCode` (`errors/TokenExpiredError.ts:1`).
+ */
+const THINQ_TOKEN_EXPIRED_RESULT_CODE = '0102';
 
 export interface ThinqHome {
 	homeId: string;
@@ -303,6 +309,22 @@ export class ThinqApiClient {
 		};
 	}
 
+	/**
+	 * True when `error` signals an expired ThinQ access token — either a real HTTP 401, or LG's own
+	 * `resultCode: '0102'` expiry signal returned as HTTP 400 by some endpoints (e.g. `control-sync`).
+	 * Mirrors homebridge-lg-thinq's dual check (`request.ts:80-97`).
+	 */
+	private isTokenExpiredError(error: unknown): boolean {
+		if (!axios.isAxiosError(error)) {
+			return false;
+		}
+		if (error.response?.status === 401) {
+			return true;
+		}
+		const data = error.response?.data as Record<string, unknown> | undefined;
+		return typeof data?.resultCode === 'string' && data.resultCode === THINQ_TOKEN_EXPIRED_RESULT_CODE;
+	}
+
 	private async request<T>(method: 'get' | 'post', uri: string, data?: unknown, retry = false): Promise<T> {
 		await this.getGateway();
 		const gateway = this.gateway;
@@ -320,7 +342,7 @@ export class ThinqApiClient {
 			const response = await axios.request<T>({ method, url, data, headers });
 			return response.data;
 		} catch (error) {
-			if (axios.isAxiosError(error) && error.response?.status === 401) {
+			if (this.isTokenExpiredError(error)) {
 				if (retry) {
 					throw new TokenExpiredError();
 				}

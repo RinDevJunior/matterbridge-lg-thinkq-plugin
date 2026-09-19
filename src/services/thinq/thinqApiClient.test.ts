@@ -312,6 +312,127 @@ describe('ThinqApiClient', () => {
 		});
 	});
 
+	describe('request resultCode 0102 retry logic', () => {
+		it('should retry once on 400 response with resultCode 0102', async () => {
+			const homes = [{ homeId: 'home-1' }];
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+
+			// First call returns 400 with resultCode 0102, second call returns 200
+			const homesAdapter = mockAxios.onGet(`${gatewayData.thinq2Uri}/service/homes`);
+			homesAdapter.replyOnce(400, { resultCode: '0102', result: '' });
+			homesAdapter.replyOnce(200, { result: { item: homes } });
+
+			mockAxios.onPost(new RegExp('https://.*.lgeapi.com/oauth/1.0/oauth2/token')).reply(200, {
+				access_token: 'new-access-token',
+				expires_in: '3600',
+			});
+
+			const result = await apiClient.getListHomes();
+
+			expect(result).toEqual(homes);
+		});
+
+		it('should throw TokenExpiredError on 400 resultCode 0102 after retry', async () => {
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+
+			// Both calls return 400 with resultCode 0102
+			const homesAdapter = mockAxios.onGet(`${gatewayData.thinq2Uri}/service/homes`);
+			homesAdapter.replyOnce(400, { resultCode: '0102', result: '' });
+			homesAdapter.replyOnce(400, { resultCode: '0102', result: '' });
+
+			mockAxios.onPost(new RegExp('https://.*.lgeapi.com/oauth/1.0/oauth2/token')).reply(200, {
+				access_token: 'new-access-token',
+				expires_in: '3600',
+			});
+
+			await expect(apiClient.getListHomes()).rejects.toThrow(TokenExpiredError);
+		});
+
+		it('should self-heal sendCommand on 400 resultCode 0102 retry', async () => {
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+
+			// First call to control-sync returns 400 with resultCode 0102, second call returns 200
+			const controlSyncAdapter = mockAxios.onPost(`${gatewayData.thinq2Uri}/service/devices/device-123/control-sync`);
+			controlSyncAdapter.replyOnce(400, { resultCode: '0102', result: '' });
+			controlSyncAdapter.replyOnce(200);
+
+			mockAxios.onPost(new RegExp('https://.*.lgeapi.com/oauth/1.0/oauth2/token')).reply(200, {
+				access_token: 'new-access-token',
+				expires_in: '3600',
+			});
+
+			await apiClient.sendCommand('device-123', {
+				command: 'Operation',
+				dataKey: 'airState.operation',
+				dataValue: 1,
+			});
+
+			// Verify two POST calls to control-sync: original + retry
+			expect(
+				mockAxios.history.post.filter((h) => h.url?.includes('/service/devices/device-123/control-sync')),
+			).toHaveLength(2);
+		});
+
+		it('should not retry on different resultCode under 400', async () => {
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+
+			// Reply with 400 and different resultCode (not 0102)
+			mockAxios
+				.onGet(`${gatewayData.thinq2Uri}/service/homes`)
+				.reply(400, { resultCode: '0110', result: 'some other error' });
+
+			await expect(apiClient.getListHomes()).rejects.toThrow();
+
+			// Verify only one GET call to /service/homes (no retry)
+			expect(mockAxios.history.get.filter((h) => h.url?.includes('/service/homes'))).toHaveLength(1);
+
+			// Verify no token refresh was attempted
+			expect(mockAxios.history.post.filter((h) => h.url?.includes('oauth2/token'))).toHaveLength(0);
+		});
+
+		it('should not crash on 400 with no response body', async () => {
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+
+			// Reply with 400 and no body (undefined data)
+			mockAxios.onGet(`${gatewayData.thinq2Uri}/service/homes`).reply(400);
+
+			await expect(apiClient.getListHomes()).rejects.toThrow();
+
+			// Verify only one GET call to /service/homes (no retry)
+			expect(mockAxios.history.get.filter((h) => h.url?.includes('/service/homes'))).toHaveLength(1);
+
+			// Verify no token refresh was attempted
+			expect(mockAxios.history.post.filter((h) => h.url?.includes('oauth2/token'))).toHaveLength(0);
+		});
+
+		it('should not crash on 400 with non-JSON string body', async () => {
+			mockAxios
+				.onGet('https://route.lgthinq.com:46030/v1/service/application/gateway-uri')
+				.reply(200, { result: gatewayData });
+
+			// Reply with 400 and non-JSON string body
+			mockAxios.onGet(`${gatewayData.thinq2Uri}/service/homes`).reply(400, 'Bad Request');
+
+			await expect(apiClient.getListHomes()).rejects.toThrow();
+
+			// Verify only one GET call to /service/homes (no retry)
+			expect(mockAxios.history.get.filter((h) => h.url?.includes('/service/homes'))).toHaveLength(1);
+
+			// Verify no token refresh was attempted
+			expect(mockAxios.history.post.filter((h) => h.url?.includes('oauth2/token'))).toHaveLength(0);
+		});
+	});
+
 	describe('getMqttRouteInfo', () => {
 		it('should fetch MQTT route info from the correct URL', async () => {
 			const mqttRouteInfo = { mqttServer: 'mqtt.example.com:8883' };
