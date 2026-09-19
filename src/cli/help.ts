@@ -24,9 +24,16 @@ ${b}Options:${r}
   ${y}--help${r}         Show this help message
   ${y}--debug${r}        Enable debug logging
 
+${b}Energy options:${r}
+  ${y}--device${r}       Device id (default: first AC device)
+  ${y}--samples${r}      Number of snapshots to fetch (default: 1)
+  ${y}--interval${r}     Seconds between samples (default: 5)
+  ${y}--keep-alive${r}   Send the plugin's keep-alive first, wait 2s, then sample
+
 ${b}Commands:${r}
 ${row('login', '', 'Authenticate with LG ThinQ')}
 ${row('devices', '', 'List all discovered ThinQ devices (requires a prior login)')}
+${row('energy', '[energy options]', 'Print raw AC power/energy snapshot fields (requires a prior login)')}
 ${row('help', '', 'Show this help message')}
 
 ${b}Examples:${r}
@@ -35,4 +42,6 @@ ${b}Examples:${r}
   npm run cli -- --command ${g}login${r} --type account --country US --language en-US
   npm run cli -- --command ${g}login${r} --type token
   npm run cli -- --command ${g}devices${r}
+  npm run cli -- --command ${g}energy${r}
+  npm run cli -- --command ${g}energy${r} --samples 5 --interval 10 --keep-alive
 `;

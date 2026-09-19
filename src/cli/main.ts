@@ -1,6 +1,7 @@
 import { AnsiLogger, LogLevel } from 'matterbridge/logger';
 
 import { cmdDevices } from './commands/devices.js';
+import { cmdEnergy, parseEnergyOptions } from './commands/energy.js';
 import { cmdLogin } from './commands/login.js';
 import { HELP_TEXT } from './help.js';
 import { loadSession } from './session.js';
@@ -38,6 +39,19 @@ export async function main(): Promise<void> {
 			}
 
 			await cmdDevices(session, logger);
+			return;
+		}
+
+		if (command === 'energy') {
+			const options = parseEnergyOptions(args);
+			const session = loadSession();
+			if (!session) {
+				console.error('No session found. Run `--command login` first.');
+				process.exitCode = 1;
+				return;
+			}
+
+			await cmdEnergy(session, options, logger);
 			return;
 		}
 
