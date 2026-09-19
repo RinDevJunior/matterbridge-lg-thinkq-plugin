@@ -1,9 +1,20 @@
 import { MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger } from 'matterbridge/logger';
-import { FanControl, OnOff, TemperatureMeasurement, Thermostat } from 'matterbridge/matter/clusters';
+import {
+	AirQuality,
+	ElectricalPowerMeasurement,
+	FanControl,
+	OnOff,
+	Pm10ConcentrationMeasurement,
+	Pm25ConcentrationMeasurement,
+	RelativeHumidityMeasurement,
+	TemperatureMeasurement,
+	Thermostat,
+} from 'matterbridge/matter/clusters';
 
 import type { AirConditionerCapabilities } from '../../core/domain/value-objects/AirConditionerCapabilities.js';
 import type { ThinqSnapshot } from '../../core/domain/value-objects/ThinqSnapshot.js';
+import { applyAuxiliaryToggleSnapshot } from './thinqAirConditionerAuxiliaryToggles.js';
 import {
 	THINQ_FAN_SPEED_AUTO,
 	THINQ_FAN_SPEED_LOW,
@@ -139,6 +150,19 @@ export async function applyThinqSnapshotToAirConditioner(
 		if (percentCurrent !== undefined) {
 			await airConditioner.updateAttribute(FanControl.id, 'percentCurrent', percentCurrent, logger);
 		}
+
+		if (capabilities.supportsSwingMode) {
+			await airConditioner.updateAttribute(
+				FanControl.id,
+				'rockSetting',
+				{
+					rockLeftRight: snapshot.isHorizontalSwingOn,
+					rockUpDown: snapshot.isVerticalSwingOn,
+					rockRound: snapshot.isVerticalSwingOn && snapshot.isHorizontalSwingOn,
+				},
+				logger,
+			);
+		}
 	} else {
 		await airConditioner.updateAttribute(
 			FanControl.id,
@@ -146,5 +170,62 @@ export async function applyThinqSnapshotToAirConditioner(
 			mapWindStrengthToFixedFanMode(snapshot.windStrength),
 			logger,
 		);
+	}
+
+	await applyAuxiliaryToggleSnapshot(airConditioner, snapshot, capabilities, logger);
+
+	if (capabilities.supportsHumiditySensor) {
+		const humidityPercent = snapshot.humidityPercent;
+		if (humidityPercent !== undefined) {
+			const humiditySensorChild = airConditioner.getChildEndpointById('HumiditySensor');
+			if (humiditySensorChild) {
+				await humiditySensorChild.updateAttribute(
+					RelativeHumidityMeasurement.id,
+					'measuredValue',
+					humidityPercent * 100,
+					logger,
+				);
+			}
+		}
+	}
+
+	if (capabilities.supportsAirQualitySensor) {
+		const airQualitySensorChild = airConditioner.getChildEndpointById('AirQualitySensor');
+		if (airQualitySensorChild) {
+			const airQualityOverall = snapshot.airQualityOverall;
+			if (airQualityOverall !== undefined) {
+				await airQualitySensorChild.updateAttribute(AirQuality.id, 'airQuality', airQualityOverall, logger);
+			}
+
+			const pm25Value = snapshot.pm25;
+			if (pm25Value !== undefined) {
+				await airQualitySensorChild.updateAttribute(
+					Pm25ConcentrationMeasurement.id,
+					'measuredValue',
+					pm25Value,
+					logger,
+				);
+			}
+
+			const pm10Value = snapshot.pm10;
+			if (pm10Value !== undefined) {
+				await airQualitySensorChild.updateAttribute(
+					Pm10ConcentrationMeasurement.id,
+					'measuredValue',
+					pm10Value,
+					logger,
+				);
+			}
+		}
+	}
+
+	if (capabilities.supportsEnergyMonitoring) {
+		const powerConsumptionWatts = snapshot.powerConsumptionWatts;
+		if (powerConsumptionWatts !== undefined) {
+			const energyMonitorChild = airConditioner.getChildEndpointById('EnergyMonitor');
+			if (energyMonitorChild) {
+				await energyMonitorChild.updateAttribute(ElectricalPowerMeasurement.id, 'power', powerConsumptionWatts, logger);
+			}
+		}
 	}
 }

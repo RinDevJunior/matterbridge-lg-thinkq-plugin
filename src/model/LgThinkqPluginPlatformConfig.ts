@@ -4,11 +4,26 @@ export interface ThinqDeviceCapabilityConfig {
 	supportsHeat?: boolean;
 	supportsDry?: boolean;
 	supportsFanSpeedControl?: boolean;
+	supportsJetMode?: boolean;
+	supportsQuietMode?: boolean;
+	supportsEnergySaveMode?: boolean;
+	supportsAirCleanMode?: boolean;
+	supportsLedControl?: boolean;
+	supportsSwingMode?: boolean;
+	supportsHumiditySensor?: boolean;
+	supportsAirQualitySensor?: boolean;
+	supportsEnergyMonitoring?: boolean;
+}
+
+export interface ThinqSceneButtonConfig {
+	name: string;
+	opMode: number;
 }
 
 export interface ThinqDeviceConfigEntry {
 	deviceId: string;
 	capabilities?: ThinqDeviceCapabilityConfig;
+	sceneButtons?: ThinqSceneButtonConfig[];
 }
 
 export interface ThinqAuthConfig {

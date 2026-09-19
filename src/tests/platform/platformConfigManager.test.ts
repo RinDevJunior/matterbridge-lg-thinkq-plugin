@@ -227,7 +227,7 @@ describe('PlatformConfigManager', () => {
 			});
 			const manager = PlatformConfigManager.create(config, mockLogger);
 
-			expect(manager.thinqRefreshIntervalSeconds).toBe(5);
+			expect(manager.thinqRefreshIntervalSeconds).toBe(60);
 		});
 	});
 
@@ -316,6 +316,72 @@ describe('PlatformConfigManager', () => {
 			const capabilities = manager.getDeviceCapabilities('unknown-device');
 			expect(capabilities.supportsHeat).toBe(true);
 			expect(capabilities.supportsFanSpeedControl).toBe(true);
+		});
+	});
+
+	describe('getSceneButtons', () => {
+		it('should return scene buttons when device found with sceneButtons configured', () => {
+			const config = asPartial<LgThinkqPluginPlatformConfig>({
+				thinq: {
+					loginType: 'account',
+					country: 'US',
+					language: 'en-US',
+					devices: [
+						{
+							deviceId: 'device-1',
+							sceneButtons: [
+								{ name: 'PowerOff', opMode: 0 },
+								{ name: 'Cool26', opMode: 1 },
+							],
+						},
+					],
+				},
+			});
+			const manager = PlatformConfigManager.create(config, mockLogger);
+
+			const buttons = manager.getSceneButtons('device-1');
+			expect(buttons).toHaveLength(2);
+			expect(buttons[0]).toEqual({ name: 'PowerOff', opMode: 0 });
+			expect(buttons[1]).toEqual({ name: 'Cool26', opMode: 1 });
+		});
+
+		it('should return empty array when device found without sceneButtons key', () => {
+			const config = asPartial<LgThinkqPluginPlatformConfig>({
+				thinq: {
+					loginType: 'account',
+					country: 'US',
+					language: 'en-US',
+					devices: [
+						{
+							deviceId: 'device-1',
+						},
+					],
+				},
+			});
+			const manager = PlatformConfigManager.create(config, mockLogger);
+
+			const buttons = manager.getSceneButtons('device-1');
+			expect(buttons).toEqual([]);
+		});
+
+		it('should return empty array when device not found', () => {
+			const config = asPartial<LgThinkqPluginPlatformConfig>({
+				thinq: { loginType: 'account', country: 'US', language: 'en-US', devices: [] },
+			});
+			const manager = PlatformConfigManager.create(config, mockLogger);
+
+			const buttons = manager.getSceneButtons('unknown-device');
+			expect(buttons).toEqual([]);
+		});
+
+		it('should return empty array when devices array is undefined', () => {
+			const config = asPartial<LgThinkqPluginPlatformConfig>({
+				thinq: { loginType: 'account', country: 'US', language: 'en-US', devices: undefined as unknown as any[] },
+			});
+			const manager = PlatformConfigManager.create(config, mockLogger);
+
+			const buttons = manager.getSceneButtons('device-1');
+			expect(buttons).toEqual([]);
 		});
 	});
 });

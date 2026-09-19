@@ -1,6 +1,6 @@
 {
 	"title": "Matterbridge LG ThinQ + webOS Plugin",
-	"description": "matterbridge-lg-thinkq-plugin v. 0.1.0-rc03 by https://github.com/RinDevJunior",
+	"description": "matterbridge-lg-thinkq-plugin v. 0.1.0-rc04 by https://github.com/RinDevJunior",
 	"type": "object",
 	"properties": {
 		"name": {
@@ -78,7 +78,82 @@
 										"description": "Whether this device supports adjustable fan speed.",
 										"type": "boolean",
 										"default": true
+									},
+									"supportsJetMode": {
+										"title": "Supports Jet Mode",
+										"description": "Whether this device supports jet mode toggle.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsQuietMode": {
+										"title": "Supports Quiet Mode",
+										"description": "Whether this device supports quiet mode toggle.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsEnergySaveMode": {
+										"title": "Supports Energy-Save Mode",
+										"description": "Whether this device supports energy-save mode toggle.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsAirCleanMode": {
+										"title": "Supports Air-Clean Mode",
+										"description": "Whether this device supports air-clean mode toggle.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsLedControl": {
+										"title": "Supports LED Control",
+										"description": "Whether this device supports LED/display light control toggle.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsSwingMode": {
+										"title": "Supports Swing Mode",
+										"description": "Whether this device supports swing mode (vertical/horizontal vane control).",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsHumiditySensor": {
+										"title": "Supports Humidity Sensor",
+										"description": "Whether this device reports humidity data.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsAirQualitySensor": {
+										"title": "Supports Air-Quality Sensor",
+										"description": "Whether this device reports air-quality (AQI, PM2.5, PM10) data.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsEnergyMonitoring": {
+										"title": "Supports Energy Monitoring",
+										"description": "Whether this device reports instantaneous power consumption data.",
+										"type": "boolean",
+										"default": false
 									}
+								}
+							},
+							"sceneButtons": {
+								"title": "Scene Buttons",
+								"description": "Optional custom quick-access scene buttons that switch the AC to a saved mode combo with one tap.",
+								"type": "array",
+								"items": {
+									"type": "object",
+									"properties": {
+										"name": {
+											"title": "Button Name",
+											"description": "Display name for this scene button (e.g. 'Eco', 'Comfort').",
+											"type": "string"
+										},
+										"opMode": {
+											"title": "Operation Mode",
+											"description": "ThinQ operation mode number to activate when this button is pressed.",
+											"type": "number"
+										}
+									},
+									"required": ["name", "opMode"]
 								}
 							}
 						},

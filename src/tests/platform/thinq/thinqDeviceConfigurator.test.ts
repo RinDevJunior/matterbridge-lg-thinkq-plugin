@@ -4,12 +4,20 @@ import type { ThinqAirConditionerDevice } from '../../../core/domain/entities/Th
 import { DEFAULT_AIR_CONDITIONER_CAPABILITIES } from '../../../core/domain/value-objects/AirConditionerCapabilities.js';
 import { ThinqSnapshot } from '../../../core/domain/value-objects/ThinqSnapshot.js';
 import type { PlatformConfigManager } from '../../../platform/platformConfigManager.js';
+import * as auxiliaryTogglesModule from '../../../platform/thinq/thinqAirConditionerAuxiliaryToggles.js';
 import { registerAirConditionerCommandHandlers } from '../../../platform/thinq/thinqAirConditionerCommandHandlers.js';
+import * as sceneButtonsModule from '../../../platform/thinq/thinqAirConditionerSceneButtons.js';
 import { ThinqDeviceConfigurator } from '../../../platform/thinq/thinqDeviceConfigurator.js';
 import type { ThinqApiClient } from '../../../services/thinq/thinqApiClient.js';
 import { asPartial, createMockLogger } from '../../helpers/testUtils.js';
 
 vi.mock('../../../platform/thinq/thinqAirConditionerCommandHandlers.js');
+vi.mock('../../../platform/thinq/thinqAirConditionerAuxiliaryToggles.js', () => ({
+	registerAuxiliaryToggleCommandHandlers: vi.fn(),
+}));
+vi.mock('../../../platform/thinq/thinqAirConditionerSceneButtons.js', () => ({
+	registerSceneButtonCommandHandlers: vi.fn(),
+}));
 vi.mock('../../../platform/thinq/thinqAirConditionerEndpointFactory.js', () => ({
 	buildAirConditionerEndpoint: vi.fn(() => ({
 		log: { debug: vi.fn(), info: vi.fn(), error: vi.fn() },
@@ -46,6 +54,7 @@ function createMockApiClient(): ThinqApiClient {
 function createMockConfigManager(): PlatformConfigManager {
 	return asPartial<PlatformConfigManager>({
 		getDeviceCapabilities: vi.fn().mockReturnValue(DEFAULT_AIR_CONDITIONER_CAPABILITIES),
+		getSceneButtons: vi.fn().mockReturnValue([]),
 	});
 }
 
@@ -176,6 +185,127 @@ describe('ThinqDeviceConfigurator', () => {
 				mockLogger,
 				DEFAULT_AIR_CONDITIONER_CAPABILITIES,
 			);
+		});
+
+		it('should call registerAuxiliaryToggleCommandHandlers with correct parameters (Phase A)', async () => {
+			// Arrange
+			const device = createMockThinqAirConditionerDevice();
+			const registerAuxHandlersSpy = vi.mocked(auxiliaryTogglesModule.registerAuxiliaryToggleCommandHandlers);
+
+			// Act
+			await configurator.registerAirConditioner(device);
+
+			// Assert
+			expect(registerAuxHandlersSpy).toHaveBeenCalledWith(
+				expect.anything(), // endpoint
+				device,
+				mockApiClient,
+				mockLogger,
+				DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+			);
+		});
+
+		it('should call registerAuxiliaryToggleCommandHandlers after registerAirConditionerCommandHandlers', async () => {
+			// Arrange
+			const device = createMockThinqAirConditionerDevice();
+			const registerHandlersSpy = vi.mocked(registerAirConditionerCommandHandlers);
+			const registerAuxHandlersSpy = vi.mocked(auxiliaryTogglesModule.registerAuxiliaryToggleCommandHandlers);
+
+			// Mock to track call order
+			const callOrder: string[] = [];
+			registerHandlersSpy.mockImplementation(() => {
+				callOrder.push('registerAirConditionerCommandHandlers');
+			});
+			registerAuxHandlersSpy.mockImplementation(() => {
+				callOrder.push('registerAuxiliaryToggleCommandHandlers');
+			});
+
+			// Act
+			await configurator.registerAirConditioner(device);
+
+			// Assert
+			expect(callOrder).toEqual(['registerAirConditionerCommandHandlers', 'registerAuxiliaryToggleCommandHandlers']);
+		});
+
+		it('should call getSceneButtons with device id', async () => {
+			// Arrange
+			const device = createMockThinqAirConditionerDevice();
+			const getSceneButtonsSpy = vi.mocked(mockConfigManager.getSceneButtons);
+
+			// Act
+			await configurator.registerAirConditioner(device);
+
+			// Assert
+			expect(getSceneButtonsSpy).toHaveBeenCalledWith('device-123');
+		});
+
+		it('should call registerSceneButtonCommandHandlers with correct parameters', async () => {
+			// Arrange
+			const device = createMockThinqAirConditionerDevice();
+			const sceneButtons = [{ name: 'PowerOff', opMode: 0 }];
+			vi.mocked(mockConfigManager.getSceneButtons).mockReturnValue(sceneButtons);
+			const registerSceneHandlersSpy = vi.mocked(sceneButtonsModule.registerSceneButtonCommandHandlers);
+
+			// Act
+			await configurator.registerAirConditioner(device);
+
+			// Assert
+			expect(registerSceneHandlersSpy).toHaveBeenCalledWith(
+				expect.anything(), // endpoint
+				sceneButtons,
+				device,
+				mockApiClient,
+				mockLogger,
+			);
+		});
+
+		it('should pass empty scene buttons array to handler when none configured', async () => {
+			// Arrange
+			const device = createMockThinqAirConditionerDevice();
+			vi.mocked(mockConfigManager.getSceneButtons).mockReturnValue([]);
+			const registerSceneHandlersSpy = vi.mocked(sceneButtonsModule.registerSceneButtonCommandHandlers);
+
+			// Act
+			await configurator.registerAirConditioner(device);
+
+			// Assert
+			expect(registerSceneHandlersSpy).toHaveBeenCalledWith(
+				expect.anything(), // endpoint
+				[],
+				device,
+				mockApiClient,
+				mockLogger,
+			);
+		});
+
+		it('should call registerSceneButtonCommandHandlers after registerAuxiliaryToggleCommandHandlers', async () => {
+			// Arrange
+			const device = createMockThinqAirConditionerDevice();
+			const registerHandlersSpy = vi.mocked(registerAirConditionerCommandHandlers);
+			const registerAuxHandlersSpy = vi.mocked(auxiliaryTogglesModule.registerAuxiliaryToggleCommandHandlers);
+			const registerSceneHandlersSpy = vi.mocked(sceneButtonsModule.registerSceneButtonCommandHandlers);
+
+			// Mock to track call order
+			const callOrder: string[] = [];
+			registerHandlersSpy.mockImplementation(() => {
+				callOrder.push('registerAirConditionerCommandHandlers');
+			});
+			registerAuxHandlersSpy.mockImplementation(() => {
+				callOrder.push('registerAuxiliaryToggleCommandHandlers');
+			});
+			registerSceneHandlersSpy.mockImplementation(() => {
+				callOrder.push('registerSceneButtonCommandHandlers');
+			});
+
+			// Act
+			await configurator.registerAirConditioner(device);
+
+			// Assert
+			expect(callOrder).toEqual([
+				'registerAirConditionerCommandHandlers',
+				'registerAuxiliaryToggleCommandHandlers',
+				'registerSceneButtonCommandHandlers',
+			]);
 		});
 	});
 });
