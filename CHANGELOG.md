@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.0-rc05] - 2026-09-19
+
+### Fixed
+
+- **ThinQ token-expiry detection** — treat LG resultCode `0102` as token-expired alongside HTTP 401, resolving AC on/off command failures caused by expired tokens not being refreshed (PR #8).
+
+<a href="https://www.buymeacoffee.com/rinnvspktr" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
+---
+
 ## [0.1.0-rc04] - 2026-09-19
 
 ### Added
