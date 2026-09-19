@@ -1429,6 +1429,230 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 					expect(airConditioner.getChildEndpointById).not.toHaveBeenCalledWith('EnergyMonitor');
 				});
 			});
+
+			describe('energy on AC endpoint (experiment)', () => {
+				beforeEach(() => {
+					airConditioner = {
+						id: 0x01,
+						name: 'Living Room AC',
+						log: mockLogger,
+						updateAttribute: vi.fn().mockResolvedValue(false),
+						getChildEndpointById: vi.fn(),
+					};
+				});
+
+				it('should push power consumption to AC endpoint when energyMonitoringPlacement is "endpoint" and value is defined', async () => {
+					// Arrange
+					capabilities = {
+						...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+						supportsEnergyMonitoring: true,
+						energyMonitoringPlacement: 'endpoint',
+					};
+
+					const snapshot = new ThinqSnapshot({
+						'airState.operation': 1,
+						'airState.tempState.current': 22,
+						'airState.tempState.target': 24,
+						'airState.opMode': 0,
+						'airState.windStrength': 2,
+						'airState.energy.onCurrent': 500,
+					});
+
+					// Act
+					await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+					// Assert
+					expect(airConditioner.updateAttribute).toHaveBeenCalledWith(
+						ElectricalPowerMeasurement.id,
+						'activePower',
+						5000,
+						mockLogger,
+					);
+					expect(airConditioner.getChildEndpointById).not.toHaveBeenCalledWith('EnergyMonitor');
+				});
+
+				it('should write 0 watts to endpoint when power is off and reading is absent', async () => {
+					// Arrange
+					capabilities = {
+						...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+						supportsEnergyMonitoring: true,
+						energyMonitoringPlacement: 'endpoint',
+					};
+
+					const snapshot = new ThinqSnapshot({
+						'airState.operation': 0,
+						'airState.tempState.current': 22,
+						'airState.tempState.target': 24,
+						'airState.opMode': 0,
+						'airState.windStrength': 2,
+						// airState.energy.onCurrent deliberately omitted
+					});
+
+					// Act
+					await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+					// Assert
+					expect(airConditioner.updateAttribute).toHaveBeenCalledWith(
+						ElectricalPowerMeasurement.id,
+						'activePower',
+						0,
+						mockLogger,
+					);
+				});
+
+				it('should not write power to endpoint when power is on but reading is absent', async () => {
+					// Arrange
+					capabilities = {
+						...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+						supportsEnergyMonitoring: true,
+						energyMonitoringPlacement: 'endpoint',
+					};
+
+					const snapshot = new ThinqSnapshot({
+						'airState.operation': 1,
+						'airState.tempState.current': 22,
+						'airState.tempState.target': 24,
+						'airState.opMode': 0,
+						'airState.windStrength': 2,
+						// airState.energy.onCurrent deliberately omitted
+					});
+
+					// Act
+					await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+					// Assert
+					const powerUpdateCalls = (airConditioner.updateAttribute as any).mock.calls.filter(
+						(call: any[]) => call[1] === 'activePower',
+					);
+					expect(powerUpdateCalls).toHaveLength(0);
+				});
+
+				it('should write 0 watts correctly when onCurrent is 0', async () => {
+					// Arrange
+					capabilities = {
+						...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+						supportsEnergyMonitoring: true,
+						energyMonitoringPlacement: 'endpoint',
+					};
+
+					const snapshot = new ThinqSnapshot({
+						'airState.operation': 1,
+						'airState.tempState.current': 22,
+						'airState.tempState.target': 24,
+						'airState.opMode': 0,
+						'airState.windStrength': 2,
+						'airState.energy.onCurrent': 0,
+					});
+
+					// Act
+					await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+					// Assert
+					expect(airConditioner.updateAttribute).toHaveBeenCalledWith(
+						ElectricalPowerMeasurement.id,
+						'activePower',
+						0,
+						mockLogger,
+					);
+				});
+
+				it('should not push power to endpoint when supportsEnergyMonitoring is false', async () => {
+					// Arrange
+					capabilities = {
+						...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+						supportsEnergyMonitoring: false,
+						energyMonitoringPlacement: 'endpoint',
+					};
+
+					const snapshot = new ThinqSnapshot({
+						'airState.operation': 1,
+						'airState.tempState.current': 22,
+						'airState.tempState.target': 24,
+						'airState.opMode': 0,
+						'airState.windStrength': 2,
+						'airState.energy.onCurrent': 500,
+					});
+
+					// Act
+					await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+					// Assert
+					const powerUpdateCalls = (airConditioner.updateAttribute as any).mock.calls.filter(
+						(call: any[]) => call[1] === 'activePower',
+					);
+					expect(powerUpdateCalls).toHaveLength(0);
+				});
+
+				it('should still write to child endpoint in child mode and not to AC endpoint', async () => {
+					// Arrange
+					const mockEnergyChild = {
+						updateAttribute: vi.fn().mockResolvedValue(false),
+					};
+
+					airConditioner.getChildEndpointById = vi.fn().mockReturnValue(mockEnergyChild);
+
+					capabilities = {
+						...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+						supportsEnergyMonitoring: true,
+						energyMonitoringPlacement: 'child',
+					};
+
+					const snapshot = new ThinqSnapshot({
+						'airState.operation': 1,
+						'airState.tempState.current': 22,
+						'airState.tempState.target': 24,
+						'airState.opMode': 0,
+						'airState.windStrength': 2,
+						'airState.energy.onCurrent': 500,
+					});
+
+					// Act
+					await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+					// Assert
+					expect(airConditioner.getChildEndpointById).toHaveBeenCalledWith('EnergyMonitor');
+					expect(mockEnergyChild.updateAttribute).toHaveBeenCalledWith(
+						ElectricalPowerMeasurement.id,
+						'activePower',
+						5000,
+						mockLogger,
+					);
+					// AC endpoint should NOT receive the power attribute update
+					const acPowerUpdateCalls = (airConditioner.updateAttribute as any).mock.calls.filter(
+						(call: any[]) => call[0] === ElectricalPowerMeasurement.id && call[1] === 'activePower',
+					);
+					expect(acPowerUpdateCalls).toHaveLength(0);
+				});
+
+				it('should round power consumption correctly (e.g., 1.23 W -> 1230 mW)', async () => {
+					// Arrange
+					capabilities = {
+						...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+						supportsEnergyMonitoring: true,
+						energyMonitoringPlacement: 'endpoint',
+					};
+
+					const snapshot = new ThinqSnapshot({
+						'airState.operation': 1,
+						'airState.tempState.current': 22,
+						'airState.tempState.target': 24,
+						'airState.opMode': 0,
+						'airState.windStrength': 2,
+						'airState.energy.onCurrent': 123,
+					});
+
+					// Act
+					await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+					// Assert
+					expect(airConditioner.updateAttribute).toHaveBeenCalledWith(
+						ElectricalPowerMeasurement.id,
+						'activePower',
+						1230,
+						mockLogger,
+					);
+				});
+			});
 		});
 	});
 });

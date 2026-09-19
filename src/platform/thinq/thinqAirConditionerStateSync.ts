@@ -220,16 +220,28 @@ export async function applyThinqSnapshotToAirConditioner(
 	}
 
 	if (capabilities.supportsEnergyMonitoring) {
-		const powerConsumptionWatts = snapshot.powerConsumptionWatts;
-		if (powerConsumptionWatts !== undefined) {
-			const energyMonitorChild = airConditioner.getChildEndpointById('EnergyMonitor');
-			if (energyMonitorChild) {
-				await energyMonitorChild.updateAttribute(
+		if (capabilities.energyMonitoringPlacement === 'endpoint') {
+			const watts = snapshot.powerConsumptionWatts ?? (snapshot.isPowerOn ? undefined : 0);
+			if (watts !== undefined) {
+				await airConditioner.updateAttribute(
 					ElectricalPowerMeasurement.id,
 					'activePower',
-					Math.round(powerConsumptionWatts * 1000),
+					Math.round(watts * 1000),
 					logger,
 				);
+			}
+		} else {
+			const powerConsumptionWatts = snapshot.powerConsumptionWatts;
+			if (powerConsumptionWatts !== undefined) {
+				const energyMonitorChild = airConditioner.getChildEndpointById('EnergyMonitor');
+				if (energyMonitorChild) {
+					await energyMonitorChild.updateAttribute(
+						ElectricalPowerMeasurement.id,
+						'activePower',
+						Math.round(powerConsumptionWatts * 1000),
+						logger,
+					);
+				}
 			}
 		}
 	}

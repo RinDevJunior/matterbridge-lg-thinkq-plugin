@@ -1,5 +1,7 @@
 import { PlatformConfig } from 'matterbridge';
 
+export type EnergyMonitoringPlacement = 'child' | 'endpoint';
+
 export interface ThinqDeviceCapabilityConfig {
 	supportsHeat?: boolean;
 	supportsDry?: boolean;
@@ -13,6 +15,7 @@ export interface ThinqDeviceCapabilityConfig {
 	supportsHumiditySensor?: boolean;
 	supportsAirQualitySensor?: boolean;
 	supportsEnergyMonitoring?: boolean;
+	energyMonitoringPlacement?: EnergyMonitoringPlacement;
 }
 
 export interface ThinqSceneButtonConfig {

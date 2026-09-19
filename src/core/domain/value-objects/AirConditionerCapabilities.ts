@@ -1,4 +1,4 @@
-import type { ThinqDeviceConfigEntry } from '../../../model/LgThinkqPluginPlatformConfig.js';
+import type { EnergyMonitoringPlacement, ThinqDeviceConfigEntry } from '../../../model/LgThinkqPluginPlatformConfig.js';
 
 /** Resolved per-device Matter capability set for a ThinQ AirConditioner endpoint. */
 export interface AirConditionerCapabilities {
@@ -14,6 +14,7 @@ export interface AirConditionerCapabilities {
 	readonly supportsHumiditySensor: boolean;
 	readonly supportsAirQualitySensor: boolean;
 	readonly supportsEnergyMonitoring: boolean;
+	readonly energyMonitoringPlacement: EnergyMonitoringPlacement;
 }
 
 export const DEFAULT_AIR_CONDITIONER_CAPABILITIES: AirConditionerCapabilities = {
@@ -29,12 +30,13 @@ export const DEFAULT_AIR_CONDITIONER_CAPABILITIES: AirConditionerCapabilities = 
 	supportsHumiditySensor: false,
 	supportsAirQualitySensor: false,
 	supportsEnergyMonitoring: false,
+	energyMonitoringPlacement: 'child',
 };
 
 /**
  * Merges configured per-device capability flags over the full-support default.
  * Existing flags (supportsHeat/supportsDry/supportsFanSpeedControl) default to `true`.
- * New flags (all others) default to `false` (opt-in).
+ * New flags (all others) default to `false` (opt-in). Energy monitoring placement defaults to `'child'`.
  */
 export function resolveAirConditionerCapabilities(
 	devices: ThinqDeviceConfigEntry[] | undefined,
@@ -62,5 +64,9 @@ export function resolveAirConditionerCapabilities(
 			capabilities?.supportsAirQualitySensor ?? DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsAirQualitySensor,
 		supportsEnergyMonitoring:
 			capabilities?.supportsEnergyMonitoring ?? DEFAULT_AIR_CONDITIONER_CAPABILITIES.supportsEnergyMonitoring,
+		energyMonitoringPlacement:
+			capabilities?.energyMonitoringPlacement === 'endpoint'
+				? 'endpoint'
+				: DEFAULT_AIR_CONDITIONER_CAPABILITIES.energyMonitoringPlacement,
 	};
 }

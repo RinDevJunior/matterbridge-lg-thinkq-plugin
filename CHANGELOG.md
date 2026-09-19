@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.0-rc07] - 2026-09-19
+
+### Added
+
+- **energyMonitoringPlacement** — experimental per-device setting (`'child'` default, or `'endpoint'`) to host the electrical power measurement on the AC endpoint itself; opt-in, and the AC is not turned into an outlet (PR #10).
+- **`energy` CLI command** — live power-reading diagnostics with `--device`, `--samples`, `--interval` and `--keep-alive` options.
+
+### Fixed
+
+- **EnergyMonitor child endpoint** — added the PowerTopology cluster required by the electricalSensor device type, and `activePower` now starts at 0 instead of null. This changes the shape of the child, so Apple Home may need the AC removed and added again.
+
+<a href="https://www.buymeacoffee.com/rinnvspktr" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
+---
+
 ## [0.1.0-rc06] - 2026-09-19
 
 ### Added
