@@ -31,6 +31,10 @@ export interface AirConditionerEndpointSetpoints {
  */
 export interface BuildAirConditionerEndpointOptions {
 	sceneButtons?: { name: string; opMode: number }[];
+	vendorId?: number;
+	vendorName?: string;
+	productId?: number;
+	productName?: string;
 }
 
 export function buildAirConditionerEndpoint(
@@ -56,10 +60,10 @@ export function buildAirConditionerEndpoint(
 		.createDefaultBasicInformationClusterServer(
 			device.name,
 			device.id,
-			0xfff1,
-			'Matterbridge',
-			0x8000,
-			'Matterbridge Air Conditioner',
+			options?.vendorId ?? 0xfff1,
+			options?.vendorName ?? 'Matterbridge',
+			options?.productId ?? 0x8000,
+			options?.productName ?? 'Matterbridge Air Conditioner',
 		)
 		.createDefaultPowerSourceWiredClusterServer()
 		.createDeadFrontOnOffClusterServer(true);

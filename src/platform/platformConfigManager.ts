@@ -11,6 +11,7 @@ import {
 	createDefaultAdvancedFeature,
 	createDefaultThinqConfig,
 	LgThinkqPluginPlatformConfig,
+	type MatterOverrideSettings,
 	type ThinqSceneButtonConfig,
 } from '../model/LgThinkqPluginPlatformConfig.js';
 
@@ -90,6 +91,19 @@ export class PlatformConfigManager {
 
 	public getSceneButtons(deviceId: string): ThinqSceneButtonConfig[] {
 		return this.config.thinq.devices?.find((d) => d.deviceId === deviceId)?.sceneButtons ?? [];
+	}
+
+	public get overrideMatterConfiguration(): boolean {
+		return this.config.advancedFeature.settings.overrideMatterConfiguration;
+	}
+
+	public get matterOverrideSettings(): MatterOverrideSettings {
+		return this.config.advancedFeature.settings.matterOverrideSettings;
+	}
+
+	public getProductNameForDevice(deviceId: string): string | undefined {
+		if (!this.overrideMatterConfiguration) return undefined;
+		return this.config.thinq.devices?.find((d) => d.deviceId === deviceId)?.productName;
 	}
 
 	public validateConfig(): boolean {
