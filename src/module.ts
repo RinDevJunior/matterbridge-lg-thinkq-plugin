@@ -15,6 +15,7 @@ import { PlatformState } from './platform/platformState.js';
 import { applyThinqSnapshotToAirConditioner } from './platform/thinq/thinqAirConditionerStateSync.js';
 import { ThinqServiceContainer } from './services/thinq/serviceContainer.js';
 import { ThinqSession } from './services/thinq/session.js';
+import { ThinqDeviceUpdateListener } from './services/thinq/thinqDeviceService.js';
 import { PLUGIN_NAME } from './settings.js';
 
 export default function initializePlugin(
@@ -60,11 +61,17 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 		this.configManager = PlatformConfigManager.create(config, this.log);
 		this.registry = new DeviceRegistry();
 		this.state = new PlatformState();
-		this.thinqServices = new ThinqServiceContainer(this.log, this.persist, this.configManager);
+		this.thinqServices = new ThinqServiceContainer(
+			this.log,
+			this.persist,
+			this.configManager,
+			Path.join(this.matterbridge.matterbridgePluginDirectory, PLUGIN_NAME, 'mqtt-certs'),
+		);
 	}
 
 	// #region Lifecycle
 	public override async onStart(reason?: string): Promise<void> {
+		this.log.debug(`onStart: entry (reason=${reason ?? 'none'})`);
 		this.log.notice('onStart called with reason:', reason ?? 'none');
 
 		await this.ready;
@@ -72,12 +79,14 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 		await this.persist.init();
 
 		if (this.configManager.isClearStorageOnStartupEnabled) {
+			this.log.debug('onStart: exit early — clear-storage-on-startup enabled, skipping device startup');
 			return;
 		}
 
 		if (!this.configManager.validateConfig()) {
 			this.log.error('Platform configuration is invalid.');
 			this.state.setStartupCompleted(false);
+			this.log.debug('onStart: exit — invalid platform configuration');
 			return;
 		}
 
@@ -86,15 +95,18 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 		} catch (error) {
 			this.log.error(`ThinQ startup failed: ${error instanceof Error ? error.message : String(error)}`);
 			this.state.setStartupCompleted(false);
+			this.log.debug('onStart: exit — ThinQ startup threw');
 			return;
 		}
 
 		this.log.notice('onStart finished');
 		this.state.setStartupCompleted(true);
+		this.log.debug('onStart: exit — startup completed successfully');
 	}
 
 	public override async onConfigure(): Promise<void> {
 		await super.onConfigure();
+		this.log.debug('onConfigure: entry');
 		this.log.notice('onConfigure called');
 
 		if (this.configManager.isClearStorageOnStartupEnabled) {
@@ -109,15 +121,16 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 				.catch((error: unknown) => {
 					this.log.error(`Error clearing persistence storage: ${error}`);
 				});
+			this.log.debug('onConfigure: exit early — clear-storage-on-startup enabled');
 			return;
 		}
 
 		if (!this.state.isStartupCompleted) {
+			this.log.debug('onConfigure: exit early — startup did not complete, skipping polling setup');
 			return;
 		}
 
-		this.thinqPollingIntervalMs = this.configManager.thinqRefreshIntervalSeconds * 1000;
-		this.thinqServices.getDeviceService().startPolling(this.thinqPollingIntervalMs, (deviceId, snapshot) => {
+		const applyDeviceUpdate: ThinqDeviceUpdateListener = (deviceId, snapshot) => {
 			const airConditioner = this.registry.getDevice(deviceId) as MatterbridgeEndpoint | undefined;
 			if (!airConditioner) {
 				this.log.debug(`ThinQ device update received for unregistered device ${deviceId}, skipping.`);
@@ -133,20 +146,37 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 					`Failed to apply ThinQ state update for ${deviceId}: ${error instanceof Error ? error.message : String(error)}`,
 				);
 			});
-		});
+		};
+
+		this.thinqPollingIntervalMs = this.configManager.thinqRefreshIntervalSeconds * 1000;
+		this.thinqServices.getDeviceService().startPolling(this.thinqPollingIntervalMs, applyDeviceUpdate);
+		this.thinqServices.getDeviceService().startKeepAlive();
+		void this.thinqServices
+			.getMqttListener()
+			.start(applyDeviceUpdate)
+			.catch((error: unknown) => {
+				this.log.error(
+					`ThinQ MQTT listener failed to start: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			});
+		this.log.debug(`onConfigure: exit — polling started at ${this.thinqPollingIntervalMs}ms interval`);
 	}
 
 	public override async onShutdown(reason?: string): Promise<void> {
 		await super.onShutdown(reason);
+		this.log.debug(`onShutdown: entry (reason=${reason ?? 'none'})`);
 		this.log.notice('onShutdown called with reason:', reason ?? 'none');
 
 		this.thinqServices.getDeviceService().stopPolling();
+		this.thinqServices.getDeviceService().stopKeepAlive();
+		this.thinqServices.getMqttListener().stop();
 
 		if (this.configManager.unregisterOnShutdown) {
 			await this.unregisterAllDevices(UNREGISTER_DEVICES_DELAY_MS);
 		}
 
 		this.state.setStartupCompleted(false);
+		this.log.debug('onShutdown: exit');
 	}
 
 	/**

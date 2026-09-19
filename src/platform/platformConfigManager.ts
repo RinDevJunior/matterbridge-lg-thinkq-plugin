@@ -11,9 +11,11 @@ import {
 	createDefaultAdvancedFeature,
 	createDefaultThinqConfig,
 	LgThinkqPluginPlatformConfig,
+	type MatterOverrideSettings,
+	type ThinqSceneButtonConfig,
 } from '../model/LgThinkqPluginPlatformConfig.js';
 
-const DEFAULT_THINQ_REFRESH_INTERVAL_SECONDS = 5;
+const DEFAULT_THINQ_REFRESH_INTERVAL_SECONDS = 60;
 
 /**
  * Manages platform configuration with validation and defaults.
@@ -85,6 +87,23 @@ export class PlatformConfigManager {
 
 	public getDeviceCapabilities(deviceId: string): AirConditionerCapabilities {
 		return resolveAirConditionerCapabilities(this.config.thinq.devices, deviceId);
+	}
+
+	public getSceneButtons(deviceId: string): ThinqSceneButtonConfig[] {
+		return this.config.thinq.devices?.find((d) => d.deviceId === deviceId)?.sceneButtons ?? [];
+	}
+
+	public get overrideMatterConfiguration(): boolean {
+		return this.config.advancedFeature.settings.overrideMatterConfiguration;
+	}
+
+	public get matterOverrideSettings(): MatterOverrideSettings {
+		return this.config.advancedFeature.settings.matterOverrideSettings;
+	}
+
+	public getProductNameForDevice(deviceId: string): string | undefined {
+		if (!this.overrideMatterConfiguration) return undefined;
+		return this.config.thinq.devices?.find((d) => d.deviceId === deviceId)?.productName;
 	}
 
 	public validateConfig(): boolean {

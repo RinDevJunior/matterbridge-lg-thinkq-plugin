@@ -1,6 +1,6 @@
 {
 	"title": "Matterbridge LG ThinQ + webOS Plugin",
-	"description": "matterbridge-lg-thinkq-plugin v. 0.1.0 by https://github.com/RinDevJunior",
+	"description": "matterbridge-lg-thinkq-plugin v. 0.1.0-rc08 by https://github.com/RinDevJunior",
 	"type": "object",
 	"properties": {
 		"name": {
@@ -78,8 +78,95 @@
 										"description": "Whether this device supports adjustable fan speed.",
 										"type": "boolean",
 										"default": true
+									},
+									"supportsJetMode": {
+										"title": "Supports Jet Mode",
+										"description": "Whether this device supports jet mode toggle.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsQuietMode": {
+										"title": "Supports Quiet Mode",
+										"description": "Whether this device supports quiet mode toggle.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsEnergySaveMode": {
+										"title": "Supports Energy-Save Mode",
+										"description": "Whether this device supports energy-save mode toggle.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsAirCleanMode": {
+										"title": "Supports Air-Clean Mode",
+										"description": "Whether this device supports air-clean mode toggle.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsLedControl": {
+										"title": "Supports LED Control",
+										"description": "Whether this device supports LED/display light control toggle.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsSwingMode": {
+										"title": "Supports Swing Mode",
+										"description": "Whether this device supports swing mode (vertical/horizontal vane control).",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsHumiditySensor": {
+										"title": "Supports Humidity Sensor",
+										"description": "Whether this device reports humidity data.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsAirQualitySensor": {
+										"title": "Supports Air-Quality Sensor",
+										"description": "Whether this device reports air-quality (AQI, PM2.5, PM10) data.",
+										"type": "boolean",
+										"default": false
+									},
+									"supportsEnergyMonitoring": {
+										"title": "Supports Energy Monitoring",
+										"description": "Whether this device reports instantaneous power consumption data.",
+										"type": "boolean",
+										"default": false
+									},
+									"energyMonitoringPlacement": {
+										"title": "Energy Monitoring Placement (experimental)",
+										"description": "Where the power reading lives. 'child' (default) = separate EnergyMonitor sub-device. 'endpoint' = on the AC itself (experimental, Apple Home may not show it). Only used when Supports Energy Monitoring is on. Restart Matterbridge after changing; you may need to remove and re-add the AC in Apple Home (also after upgrading, when Energy Monitoring is on).",
+										"type": "string",
+										"enum": ["child", "endpoint"],
+										"default": "child"
 									}
 								}
+							},
+							"sceneButtons": {
+								"title": "Scene Buttons",
+								"description": "Optional custom quick-access scene buttons that switch the AC to a saved mode combo with one tap.",
+								"type": "array",
+								"items": {
+									"type": "object",
+									"properties": {
+										"name": {
+											"title": "Button Name",
+											"description": "Display name for this scene button (e.g. 'Eco', 'Comfort').",
+											"type": "string"
+										},
+										"opMode": {
+											"title": "Operation Mode",
+											"description": "ThinQ operation mode number to activate when this button is pressed.",
+											"type": "number"
+										}
+									},
+									"required": ["name", "opMode"]
+								}
+							},
+							"productName": {
+								"title": "Product Name Override",
+								"description": "Override the Matter product name shown for this device. Only applied when Override Matter Configuration is enabled in Advanced Features.",
+								"type": "string"
 							}
 						},
 						"required": ["deviceId"]
@@ -181,9 +268,48 @@
 							"description": "Unregister all devices on shutdown (development only)",
 							"type": "boolean",
 							"default": false
+						},
+						"overrideMatterConfiguration": {
+							"title": "Override Matter Configuration",
+							"description": "Override the Matter vendor/product identity (vendor name, vendor id, product name, product id) shown for AC devices in Apple Home / any Matter controller.",
+							"type": "boolean",
+							"default": false
 						}
 					},
-					"required": ["debug", "clearStorageOnStartup", "forceAuthentication", "unregisterOnShutdown"]
+					"required": [
+						"debug",
+						"clearStorageOnStartup",
+						"forceAuthentication",
+						"unregisterOnShutdown",
+						"overrideMatterConfiguration"
+					],
+					"dependencies": {
+						"overrideMatterConfiguration": {
+							"if": {
+								"properties": { "overrideMatterConfiguration": { "const": true } }
+							},
+							"then": {
+								"properties": {
+									"matterOverrideSettings": {
+										"title": "Matter Override Settings",
+										"type": "object",
+										"properties": {
+											"matterVendorName": { "title": "Vendor Name", "type": "string", "default": "Matterbridge" },
+											"matterVendorId": { "title": "Vendor ID", "type": "number", "default": 65521 },
+											"matterProductName": {
+												"title": "Product Name",
+												"type": "string",
+												"default": "LG Air Conditioner"
+											},
+											"matterProductId": { "title": "Product ID", "type": "number", "default": 32768 }
+										},
+										"required": ["matterVendorName", "matterVendorId", "matterProductName", "matterProductId"]
+									}
+								},
+								"required": ["matterOverrideSettings"]
+							}
+						}
+					}
 				}
 			}
 		}

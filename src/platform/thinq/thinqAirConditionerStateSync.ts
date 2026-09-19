@@ -1,9 +1,20 @@
 import { MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger } from 'matterbridge/logger';
-import { FanControl, OnOff, TemperatureMeasurement, Thermostat } from 'matterbridge/matter/clusters';
+import {
+	AirQuality,
+	ElectricalPowerMeasurement,
+	FanControl,
+	OnOff,
+	Pm10ConcentrationMeasurement,
+	Pm25ConcentrationMeasurement,
+	RelativeHumidityMeasurement,
+	TemperatureMeasurement,
+	Thermostat,
+} from 'matterbridge/matter/clusters';
 
 import type { AirConditionerCapabilities } from '../../core/domain/value-objects/AirConditionerCapabilities.js';
 import type { ThinqSnapshot } from '../../core/domain/value-objects/ThinqSnapshot.js';
+import { applyAuxiliaryToggleSnapshot } from './thinqAirConditionerAuxiliaryToggles.js';
 import {
 	THINQ_FAN_SPEED_AUTO,
 	THINQ_FAN_SPEED_LOW,
@@ -22,6 +33,14 @@ const THINQ_OP_MODE_AUTO = 6;
 const WIND_STRENGTH_LOW_PERCENT = 20;
 const WIND_STRENGTH_MEDIUM_PERCENT = 50;
 const WIND_STRENGTH_HIGH_PERCENT = 90;
+
+const KEY_OPERATION = 'airState.operation';
+const KEY_OP_MODE = 'airState.opMode';
+const KEY_TEMP_CURRENT = 'airState.tempState.current';
+const KEY_TEMP_TARGET = 'airState.tempState.target';
+const KEY_WIND_STRENGTH = 'airState.windStrength';
+const KEY_SWING_VERTICAL = 'airState.wDir.vStep';
+const KEY_SWING_HORIZONTAL = 'airState.wDir.hStep';
 
 /** Maps a ThinQ `airState.windStrength` value to a Matter `FanControl.percentCurrent` (Auto has no percent equivalent). */
 export function mapWindStrengthToPercent(windStrength: number | undefined): number | undefined {
@@ -64,6 +83,69 @@ export function mapOperationModeToSystemMode(
 	}
 }
 
+/** Resolves systemMode update from a snapshot, returning undefined if the write should be skipped. */
+function resolveSystemModeUpdate(
+	airConditioner: MatterbridgeEndpoint,
+	snapshot: ThinqSnapshot,
+	capabilities: AirConditionerCapabilities,
+): Thermostat.SystemMode | undefined {
+	if (!snapshot.has(KEY_OPERATION)) {
+		if (!snapshot.has(KEY_OP_MODE)) {
+			return undefined;
+		}
+		// operation absent, opMode present: derive power from current OnOff attribute
+		const currentPowerOn = (airConditioner.getAttribute(OnOff.id, 'onOff') as boolean | undefined) === true;
+		if (!currentPowerOn) {
+			return undefined;
+		}
+		return mapOperationModeToSystemMode(snapshot.operationMode, true, capabilities);
+	}
+
+	// operation present
+	const isPowerOn = snapshot.isPowerOn;
+	if (isPowerOn && !snapshot.has(KEY_OP_MODE)) {
+		// operation present and 1, opMode absent: skip systemMode
+		return undefined;
+	}
+
+	return mapOperationModeToSystemMode(snapshot.operationMode, isPowerOn, capabilities);
+}
+
+/** Resolves rock setting from a snapshot, returning undefined if neither swing axis key is present. */
+function resolveRockSetting(
+	airConditioner: MatterbridgeEndpoint,
+	snapshot: ThinqSnapshot,
+): { rockLeftRight: boolean; rockUpDown: boolean; rockRound: boolean } | undefined {
+	const hasVertical = snapshot.has(KEY_SWING_VERTICAL);
+	const hasHorizontal = snapshot.has(KEY_SWING_HORIZONTAL);
+
+	if (!hasVertical && !hasHorizontal) {
+		return undefined;
+	}
+
+	let verticalOn = snapshot.isVerticalSwingOn;
+	let horizontalOn = snapshot.isHorizontalSwingOn;
+
+	// Fallback to current attribute if only one axis is present
+	if (!hasVertical) {
+		const currentRockSetting = airConditioner.getAttribute(FanControl.id, 'rockSetting') as
+			{ rockUpDown?: boolean } | undefined;
+		verticalOn = currentRockSetting?.rockUpDown ?? false;
+	}
+
+	if (!hasHorizontal) {
+		const currentRockSetting = airConditioner.getAttribute(FanControl.id, 'rockSetting') as
+			{ rockLeftRight?: boolean } | undefined;
+		horizontalOn = currentRockSetting?.rockLeftRight ?? false;
+	}
+
+	return {
+		rockLeftRight: horizontalOn,
+		rockUpDown: verticalOn,
+		rockRound: verticalOn && horizontalOn,
+	};
+}
+
 /**
  * Pushes a freshly polled ThinQ snapshot onto the Matter `AirConditioner` endpoint's attributes
  * (device → Apple Home). Uses `updateAttribute` (idempotent) to avoid redundant attribute-report churn.
@@ -74,7 +156,58 @@ export async function applyThinqSnapshotToAirConditioner(
 	capabilities: AirConditionerCapabilities,
 	logger: AnsiLogger,
 ): Promise<void> {
-	await airConditioner.updateAttribute(OnOff.id, 'onOff', snapshot.isPowerOn, logger);
+	const deviceId = airConditioner.serialNumber ?? airConditioner.uniqueId ?? 'unknown';
+	const hasPower = snapshot.has(KEY_OPERATION);
+	const systemModeUpdate = resolveSystemModeUpdate(airConditioner, snapshot, capabilities);
+	const rockSetting =
+		capabilities.supportsFanSpeedControl && capabilities.supportsSwingMode
+			? resolveRockSetting(airConditioner, snapshot)
+			: undefined;
+
+	const attributesToPush: string[] = [];
+	const attributesToSkip: string[] = [];
+
+	if (hasPower) {
+		attributesToPush.push('power');
+	} else {
+		attributesToSkip.push('power');
+	}
+
+	if (systemModeUpdate !== undefined) {
+		attributesToPush.push('systemMode');
+	} else {
+		attributesToSkip.push('systemMode');
+	}
+
+	if (snapshot.currentTemperatureCelsius !== undefined) {
+		attributesToPush.push('currentTemp');
+	} else if (snapshot.has(KEY_TEMP_CURRENT)) {
+		attributesToSkip.push('currentTemp');
+	}
+
+	if (snapshot.targetTemperatureCelsius !== undefined) {
+		attributesToPush.push('targetTemp');
+	} else if (snapshot.has(KEY_TEMP_TARGET)) {
+		attributesToSkip.push('targetTemp');
+	}
+
+	if (snapshot.has(KEY_WIND_STRENGTH)) {
+		attributesToPush.push('fanSpeed');
+	} else if (capabilities.supportsFanSpeedControl) {
+		attributesToSkip.push('fanSpeed');
+	}
+
+	logger.debug(
+		`applyThinqSnapshotToAirConditioner: entry for deviceId=${deviceId}, pushing ${attributesToPush.length} attributes: ${attributesToPush.join(', ')}`,
+	);
+
+	if (attributesToSkip.length > 0) {
+		logger.debug(`applyThinqSnapshotToAirConditioner: skipped (source key absent): ${attributesToSkip.join(', ')}`);
+	}
+
+	if (hasPower) {
+		await airConditioner.updateAttribute(OnOff.id, 'onOff', snapshot.isPowerOn, logger);
+	}
 
 	const currentTemperatureCelsius = snapshot.currentTemperatureCelsius;
 	if (currentTemperatureCelsius !== undefined) {
@@ -105,31 +238,109 @@ export async function applyThinqSnapshotToAirConditioner(
 		}
 	}
 
-	await airConditioner.updateAttribute(
-		Thermostat.id,
-		'systemMode',
-		mapOperationModeToSystemMode(snapshot.operationMode, snapshot.isPowerOn, capabilities),
-		logger,
-	);
+	if (systemModeUpdate !== undefined) {
+		await airConditioner.updateAttribute(Thermostat.id, 'systemMode', systemModeUpdate, logger);
+	}
 
-	if (capabilities.supportsFanSpeedControl) {
-		await airConditioner.updateAttribute(
-			FanControl.id,
-			'fanMode',
-			mapWindStrengthToFanMode(snapshot.windStrength),
-			logger,
-		);
+	if (snapshot.has(KEY_WIND_STRENGTH)) {
+		if (capabilities.supportsFanSpeedControl) {
+			await airConditioner.updateAttribute(
+				FanControl.id,
+				'fanMode',
+				mapWindStrengthToFanMode(snapshot.windStrength),
+				logger,
+			);
 
-		const percentCurrent = mapWindStrengthToPercent(snapshot.windStrength);
-		if (percentCurrent !== undefined) {
-			await airConditioner.updateAttribute(FanControl.id, 'percentCurrent', percentCurrent, logger);
+			const percentCurrent = mapWindStrengthToPercent(snapshot.windStrength);
+			if (percentCurrent !== undefined) {
+				await airConditioner.updateAttribute(FanControl.id, 'percentCurrent', percentCurrent, logger);
+			}
+		} else {
+			await airConditioner.updateAttribute(
+				FanControl.id,
+				'fanMode',
+				mapWindStrengthToFixedFanMode(snapshot.windStrength),
+				logger,
+			);
 		}
-	} else {
-		await airConditioner.updateAttribute(
-			FanControl.id,
-			'fanMode',
-			mapWindStrengthToFixedFanMode(snapshot.windStrength),
-			logger,
-		);
+	}
+
+	if (capabilities.supportsFanSpeedControl && capabilities.supportsSwingMode && rockSetting !== undefined) {
+		await airConditioner.updateAttribute(FanControl.id, 'rockSetting', rockSetting, logger);
+	}
+
+	await applyAuxiliaryToggleSnapshot(airConditioner, snapshot, capabilities, logger);
+
+	if (capabilities.supportsHumiditySensor) {
+		const humidityPercent = snapshot.humidityPercent;
+		if (humidityPercent !== undefined) {
+			const humiditySensorChild = airConditioner.getChildEndpointById('HumiditySensor');
+			if (humiditySensorChild) {
+				await humiditySensorChild.updateAttribute(
+					RelativeHumidityMeasurement.id,
+					'measuredValue',
+					humidityPercent * 100,
+					logger,
+				);
+			}
+		}
+	}
+
+	if (capabilities.supportsAirQualitySensor) {
+		const airQualitySensorChild = airConditioner.getChildEndpointById('AirQualitySensor');
+		if (airQualitySensorChild) {
+			const airQualityOverall = snapshot.airQualityOverall;
+			if (airQualityOverall !== undefined) {
+				await airQualitySensorChild.updateAttribute(AirQuality.id, 'airQuality', airQualityOverall, logger);
+			}
+
+			const pm25Value = snapshot.pm25;
+			if (pm25Value !== undefined) {
+				await airQualitySensorChild.updateAttribute(
+					Pm25ConcentrationMeasurement.id,
+					'measuredValue',
+					pm25Value,
+					logger,
+				);
+			}
+
+			const pm10Value = snapshot.pm10;
+			if (pm10Value !== undefined) {
+				await airQualitySensorChild.updateAttribute(
+					Pm10ConcentrationMeasurement.id,
+					'measuredValue',
+					pm10Value,
+					logger,
+				);
+			}
+		}
+	}
+
+	if (capabilities.supportsEnergyMonitoring) {
+		if (capabilities.energyMonitoringPlacement === 'endpoint') {
+			const zeroWhenOff = snapshot.has(KEY_OPERATION) && !snapshot.isPowerOn ? 0 : undefined;
+			const watts = snapshot.powerConsumptionWatts ?? zeroWhenOff;
+			if (watts !== undefined) {
+				await airConditioner.updateAttribute(
+					ElectricalPowerMeasurement.id,
+					'activePower',
+					Math.round(watts * 1000),
+					logger,
+				);
+			}
+		} else {
+			const powerConsumptionWatts = snapshot.powerConsumptionWatts;
+			if (powerConsumptionWatts !== undefined) {
+				const energyMonitorChild = airConditioner.getChildEndpointById('EnergyMonitor');
+				if (energyMonitorChild) {
+					await energyMonitorChild.updateAttribute(
+						ElectricalPowerMeasurement.id,
+						'activePower',
+						Math.round(powerConsumptionWatts * 1000),
+						logger,
+					);
+				}
+			}
+		}
 	}
 }
