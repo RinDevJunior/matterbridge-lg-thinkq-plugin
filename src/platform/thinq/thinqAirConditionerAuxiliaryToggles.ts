@@ -250,6 +250,11 @@ export async function applyAuxiliaryToggleSnapshot(
 			continue;
 		}
 
+		if (!snapshot.has(spec.dataKey)) {
+			logger.debug(`applyAuxiliaryToggleSnapshot: skipping ${spec.endpointName}, ${spec.dataKey} absent from snapshot`);
+			continue;
+		}
+
 		const child = airConditioner.getChildEndpointById(spec.endpointName);
 		if (!child) {
 			continue;

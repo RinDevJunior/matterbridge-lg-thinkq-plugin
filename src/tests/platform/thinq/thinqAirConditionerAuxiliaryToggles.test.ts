@@ -592,5 +592,58 @@ describe('thinqAirConditionerAuxiliaryToggles', () => {
 			expect(mockEndpoint.mockChild.updateAttribute).toHaveBeenCalledTimes(2);
 			// Check that both are called (gating happens only in command handlers, not in state sync)
 		});
+
+		it('should skip quiet toggle when only jet is in snapshot', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsJetMode: true,
+				supportsQuietMode: true,
+			};
+
+			let quietChildCalls = 0;
+			mockEndpoint.getChildEndpointById.mockImplementation((name: string) => {
+				if (name === 'JetMode') {
+					return mockEndpoint.mockChild;
+				} else if (name === 'QuietMode') {
+					const quietChild = {
+						updateAttribute: vi.fn().mockImplementation(() => {
+							quietChildCalls++;
+							return Promise.resolve(false);
+						}),
+						addCommandHandler: vi.fn(),
+						log: createMockLogger(),
+					};
+					return quietChild;
+				}
+				return undefined;
+			});
+
+			const snapshot = new ThinqSnapshot({ 'airState.wMode.jet': 1 });
+
+			// Act
+			await applyAuxiliaryToggleSnapshot(mockEndpoint, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(mockEndpoint.mockChild.updateAttribute).toHaveBeenCalledTimes(1);
+			expect(quietChildCalls).toBe(0);
+		});
+
+		it('should not update any toggles for empty snapshot', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsJetMode: true,
+				supportsQuietMode: true,
+			};
+
+			const snapshot = new ThinqSnapshot({});
+
+			// Act
+			await applyAuxiliaryToggleSnapshot(mockEndpoint, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(mockEndpoint.mockChild.updateAttribute).not.toHaveBeenCalled();
+		});
 	});
 });
