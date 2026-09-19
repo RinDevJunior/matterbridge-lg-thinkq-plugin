@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.0-rc08] - 2026-09-19
+
+### Changed
+
+- **Power reading scale** — `airState.energy.onCurrent` is now read as raw watts (no division by 100), so reported power values are about 100 times larger than before (a running 1 hp AC shows about 900 to 1000 W); the Matter value is still written in milliwatts (PR #11).
+
+### Fixed
+
+- **AC flipping On/Off in Apple Home** — LG MQTT pushes are partial and state sync treated them as full snapshots, so a missing power field read as off; state sync now writes a Matter attribute only when its source property is present in the update (PR #11).
+
+<a href="https://www.buymeacoffee.com/rinnvspktr" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
+---
+
 ## [0.1.0-rc07] - 2026-09-19
 
 ### Added

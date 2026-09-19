@@ -575,12 +575,12 @@ describe('ThinqSnapshot', () => {
 	});
 
 	describe('powerConsumptionWatts (Phase D)', () => {
-		it('should return the value divided by 100 when present', () => {
+		it('should return the raw value when present (no division)', () => {
 			// Arrange
 			const snapshot = new ThinqSnapshot({ 'airState.energy.onCurrent': 500 });
 
 			// Assert
-			expect(snapshot.powerConsumptionWatts).toBe(5);
+			expect(snapshot.powerConsumptionWatts).toBe(500);
 		});
 
 		it('should return 0 when airState.energy.onCurrent is 0', () => {
@@ -615,28 +615,94 @@ describe('ThinqSnapshot', () => {
 			expect(snapshot.powerConsumptionWatts).toBeUndefined();
 		});
 
-		it('should handle decimal division correctly (999 → 9.99)', () => {
+		it('should return raw value for intermediate powers (999 → 999)', () => {
 			// Arrange
 			const snapshot = new ThinqSnapshot({ 'airState.energy.onCurrent': 999 });
 
 			// Assert
-			expect(snapshot.powerConsumptionWatts).toBe(9.99);
+			expect(snapshot.powerConsumptionWatts).toBe(999);
 		});
 
-		it('should handle large power values (5000 → 50)', () => {
+		it('should handle large power values (5000 → 5000)', () => {
 			// Arrange
 			const snapshot = new ThinqSnapshot({ 'airState.energy.onCurrent': 5000 });
 
 			// Assert
-			expect(snapshot.powerConsumptionWatts).toBe(50);
+			expect(snapshot.powerConsumptionWatts).toBe(5000);
 		});
 
-		it('should handle fractional onCurrent values (1.5 → 0.015)', () => {
+		it('should handle fractional onCurrent values (1.5 → 1.5)', () => {
 			// Arrange
 			const snapshot = new ThinqSnapshot({ 'airState.energy.onCurrent': 1.5 });
 
 			// Assert
-			expect(snapshot.powerConsumptionWatts).toBe(0.015);
+			expect(snapshot.powerConsumptionWatts).toBe(1.5);
+		});
+	});
+
+	describe('has', () => {
+		it('should return true when key has a number value', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.operation': 1 });
+
+			// Assert
+			expect(snapshot.has('airState.operation')).toBe(true);
+		});
+
+		it('should return true when key has value 0 (falsy number)', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.operation': 0 });
+
+			// Assert
+			expect(snapshot.has('airState.operation')).toBe(true);
+		});
+
+		it('should return true when key has a false boolean value', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ online: false });
+
+			// Assert
+			expect(snapshot.has('online')).toBe(true);
+		});
+
+		it('should return true when key has an empty string value', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ foo: '' });
+
+			// Assert
+			expect(snapshot.has('foo')).toBe(true);
+		});
+
+		it('should return false when key is absent', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({});
+
+			// Assert
+			expect(snapshot.has('airState.operation')).toBe(false);
+		});
+
+		it('should return false when key value is undefined', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.operation': undefined });
+
+			// Assert
+			expect(snapshot.has('airState.operation')).toBe(false);
+		});
+
+		it('should return false when key value is null', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.operation': null });
+
+			// Assert
+			expect(snapshot.has('airState.operation')).toBe(false);
+		});
+
+		it('regression: isPowerOn should remain false when key is absent (existing behavior)', () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({});
+
+			// Assert
+			expect(snapshot.isPowerOn).toBe(false);
 		});
 	});
 });

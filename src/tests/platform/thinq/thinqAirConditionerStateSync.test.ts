@@ -1242,7 +1242,7 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 					expect(mockEnergyChild.updateAttribute).toHaveBeenCalledWith(
 						ElectricalPowerMeasurement.id,
 						'activePower',
-						5000,
+						500000,
 						mockLogger,
 					);
 				});
@@ -1359,7 +1359,7 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 					);
 				});
 
-				it('should push fractional power consumption values correctly', async () => {
+				it('should push power value 999 W correctly', async () => {
 					// Arrange
 					capabilities = {
 						...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
@@ -1388,7 +1388,7 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 					expect(mockEnergyChild.updateAttribute).toHaveBeenCalledWith(
 						ElectricalPowerMeasurement.id,
 						'activePower',
-						9990,
+						999000,
 						mockLogger,
 					);
 				});
@@ -1465,7 +1465,7 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 					expect(airConditioner.updateAttribute).toHaveBeenCalledWith(
 						ElectricalPowerMeasurement.id,
 						'activePower',
-						5000,
+						500000,
 						mockLogger,
 					);
 					expect(airConditioner.getChildEndpointById).not.toHaveBeenCalledWith('EnergyMonitor');
@@ -1614,7 +1614,7 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 					expect(mockEnergyChild.updateAttribute).toHaveBeenCalledWith(
 						ElectricalPowerMeasurement.id,
 						'activePower',
-						5000,
+						500000,
 						mockLogger,
 					);
 					// AC endpoint should NOT receive the power attribute update
@@ -1624,7 +1624,7 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 					expect(acPowerUpdateCalls).toHaveLength(0);
 				});
 
-				it('should round power consumption correctly (e.g., 1.23 W -> 1230 mW)', async () => {
+				it('should round power consumption correctly (123 W -> 123000 mW)', async () => {
 					// Arrange
 					capabilities = {
 						...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
@@ -1648,11 +1648,378 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 					expect(airConditioner.updateAttribute).toHaveBeenCalledWith(
 						ElectricalPowerMeasurement.id,
 						'activePower',
-						1230,
+						123000,
 						mockLogger,
 					);
 				});
 			});
+		});
+	});
+
+	describe('applyThinqSnapshotToAirConditioner (partial pushes)', () => {
+		let mockLogger: ReturnType<typeof createMockLogger>;
+		let airConditioner: any;
+		let capabilities: AirConditionerCapabilities;
+
+		beforeEach(async () => {
+			vi.clearAllMocks();
+			mockLogger = createMockLogger();
+			capabilities = DEFAULT_AIR_CONDITIONER_CAPABILITIES;
+
+			airConditioner = {
+				id: 0x01,
+				name: 'Living Room AC',
+				log: mockLogger,
+				updateAttribute: vi.fn().mockResolvedValue(false),
+				getAttribute: vi.fn(),
+				getChildEndpointById: vi.fn(),
+			};
+		});
+
+		afterEach(() => {
+			vi.clearAllMocks();
+		});
+
+		it('should write only temperature attributes for temp-only push', async () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.tempState.current': 27.5 });
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			const calls = (airConditioner.updateAttribute as any).mock.calls;
+			const hasOnOff = calls.some((call: any[]) => call[0] === OnOff.id && call[1] === 'onOff');
+			const hasSystemMode = calls.some((call: any[]) => call[0] === Thermostat.id && call[1] === 'systemMode');
+			const hasFanMode = calls.some((call: any[]) => call[0] === FanControl.id && call[1] === 'fanMode');
+			const hasMeasuredValue = calls.some(
+				(call: any[]) => call[0] === TemperatureMeasurement.id && call[1] === 'measuredValue',
+			);
+
+			expect(hasOnOff).toBe(false);
+			expect(hasSystemMode).toBe(false);
+			expect(hasFanMode).toBe(false);
+			expect(hasMeasuredValue).toBe(true);
+		});
+
+		it('should write only energy to child endpoint for energy-only push', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsEnergyMonitoring: true,
+				energyMonitoringPlacement: 'child',
+			};
+
+			const mockEnergyChild = {
+				updateAttribute: vi.fn().mockResolvedValue(false),
+			};
+			airConditioner.getChildEndpointById.mockReturnValue(mockEnergyChild);
+
+			const snapshot = new ThinqSnapshot({ 'airState.energy.onCurrent': 996 });
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			const acCalls = (airConditioner.updateAttribute as any).mock.calls;
+			const hasOnOff = acCalls.some((call: any[]) => call[0] === OnOff.id);
+			const hasSystemMode = acCalls.some((call: any[]) => call[0] === Thermostat.id);
+
+			expect(hasOnOff).toBe(false);
+			expect(hasSystemMode).toBe(false);
+			expect(mockEnergyChild.updateAttribute).toHaveBeenCalledWith(
+				ElectricalPowerMeasurement.id,
+				'activePower',
+				996000,
+				mockLogger,
+			);
+		});
+
+		it('should not write activePower for energy-only push when operation is absent (no bogus 0 W)', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsEnergyMonitoring: true,
+				energyMonitoringPlacement: 'endpoint',
+			};
+
+			const snapshot = new ThinqSnapshot({ 'airState.tempState.current': 27.5 });
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			const calls = (airConditioner.updateAttribute as any).mock.calls;
+			const hasActivePower = calls.some((call: any[]) => call[1] === 'activePower');
+
+			expect(hasActivePower).toBe(false);
+		});
+
+		it('should write OnOff false and systemMode Off for operation=0 only push', async () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.operation': 0 });
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(airConditioner.updateAttribute).toHaveBeenCalledWith(OnOff.id, 'onOff', false, mockLogger);
+			expect(airConditioner.updateAttribute).toHaveBeenCalledWith(
+				Thermostat.id,
+				'systemMode',
+				Thermostat.SystemMode.Off,
+				mockLogger,
+			);
+		});
+
+		it('should write OnOff true but not systemMode for operation=1 only push', async () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.operation': 1 });
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(airConditioner.updateAttribute).toHaveBeenCalledWith(OnOff.id, 'onOff', true, mockLogger);
+
+			const calls = (airConditioner.updateAttribute as any).mock.calls;
+			const hasSystemMode = calls.some((call: any[]) => call[0] === Thermostat.id && call[1] === 'systemMode');
+			expect(hasSystemMode).toBe(false);
+		});
+
+		it('should write systemMode derived from opMode when OnOff is currently true', async () => {
+			// Arrange
+			airConditioner.getAttribute.mockImplementation((clusterId: number, attr: string) => {
+				if (clusterId === OnOff.id && attr === 'onOff') {
+					return true;
+				}
+				return undefined;
+			});
+
+			const snapshot = new ThinqSnapshot({ 'airState.opMode': 0 }); // COOL
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(airConditioner.updateAttribute).toHaveBeenCalledWith(
+				Thermostat.id,
+				'systemMode',
+				Thermostat.SystemMode.Cool,
+				mockLogger,
+			);
+		});
+
+		it('should not write systemMode for opMode-only push when OnOff is currently false', async () => {
+			// Arrange
+			airConditioner.getAttribute.mockImplementation((clusterId: number, attr: string) => {
+				if (clusterId === OnOff.id && attr === 'onOff') {
+					return false;
+				}
+				return undefined;
+			});
+
+			const snapshot = new ThinqSnapshot({ 'airState.opMode': 0 });
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			const calls = (airConditioner.updateAttribute as any).mock.calls;
+			const hasSystemMode = calls.some((call: any[]) => call[0] === Thermostat.id && call[1] === 'systemMode');
+			expect(hasSystemMode).toBe(false);
+		});
+
+		it('should not write systemMode for opMode-only push when OnOff is undefined', async () => {
+			// Arrange
+			airConditioner.getAttribute.mockReturnValue(undefined);
+
+			const snapshot = new ThinqSnapshot({ 'airState.opMode': 0 });
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			const calls = (airConditioner.updateAttribute as any).mock.calls;
+			const hasSystemMode = calls.some((call: any[]) => call[0] === Thermostat.id && call[1] === 'systemMode');
+			expect(hasSystemMode).toBe(false);
+		});
+
+		it('should map unsupported opMode (Dry when disabled) to Cool when OnOff is true', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsDry: false,
+			};
+
+			airConditioner.getAttribute.mockImplementation((clusterId: number, attr: string) => {
+				if (clusterId === OnOff.id && attr === 'onOff') {
+					return true;
+				}
+				return undefined;
+			});
+
+			const snapshot = new ThinqSnapshot({ 'airState.opMode': 1 }); // DRY (unsupported)
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(airConditioner.updateAttribute).toHaveBeenCalledWith(
+				Thermostat.id,
+				'systemMode',
+				Thermostat.SystemMode.Cool,
+				mockLogger,
+			);
+		});
+
+		it('should write fan mode and percent for windStrength-only push', async () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.windStrength': 2 }); // LOW
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(airConditioner.updateAttribute).toHaveBeenCalledWith(
+				FanControl.id,
+				'fanMode',
+				FanControl.FanMode.Low,
+				mockLogger,
+			);
+			expect(airConditioner.updateAttribute).toHaveBeenCalledWith(FanControl.id, 'percentCurrent', 20, mockLogger);
+		});
+
+		it('should write rockSetting when vertical swing axis only is present', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsFanSpeedControl: true,
+				supportsSwingMode: true,
+			};
+
+			airConditioner.getAttribute.mockImplementation((clusterId: number, attr: string) => {
+				if (clusterId === FanControl.id && attr === 'rockSetting') {
+					return { rockLeftRight: true, rockUpDown: false, rockRound: false };
+				}
+				return undefined;
+			});
+
+			const snapshot = new ThinqSnapshot({ 'airState.wDir.vStep': 100 });
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(airConditioner.updateAttribute).toHaveBeenCalledWith(
+				FanControl.id,
+				'rockSetting',
+				{
+					rockLeftRight: true,
+					rockUpDown: true,
+					rockRound: true,
+				},
+				mockLogger,
+			);
+		});
+
+		it('should not write rockSetting when neither swing axis is present', async () => {
+			// Arrange
+			capabilities = {
+				...DEFAULT_AIR_CONDITIONER_CAPABILITIES,
+				supportsFanSpeedControl: true,
+				supportsSwingMode: true,
+			};
+
+			const snapshot = new ThinqSnapshot({ 'airState.tempState.current': 27.5 });
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			const calls = (airConditioner.updateAttribute as any).mock.calls;
+			const hasRockSetting = calls.some((call: any[]) => call[0] === FanControl.id && call[1] === 'rockSetting');
+			expect(hasRockSetting).toBe(false);
+		});
+
+		it('should not write OnOff for push with online extra', async () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ online: true, 'airState.tempState.current': 27.5 });
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			const calls = (airConditioner.updateAttribute as any).mock.calls;
+			const hasOnOff = calls.some((call: any[]) => call[0] === OnOff.id && call[1] === 'onOff');
+			expect(hasOnOff).toBe(false);
+		});
+
+		it('should log skipped attributes for partial push', async () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({ 'airState.tempState.current': 27.5 });
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining('skipped (source key absent)'));
+		});
+
+		it('should maintain full parity with full snapshot', async () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({
+				'airState.operation': 1,
+				'airState.tempState.current': 22,
+				'airState.tempState.target': 24,
+				'airState.opMode': 0, // COOL
+				'airState.windStrength': 2, // LOW
+			});
+
+			const updateAttributeSpy = vi.spyOn(airConditioner, 'updateAttribute').mockResolvedValue(false);
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(updateAttributeSpy).toHaveBeenCalledWith(OnOff.id, 'onOff', true, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(TemperatureMeasurement.id, 'measuredValue', 2200, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'localTemperature', 2200, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'occupiedCoolingSetpoint', 2400, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(Thermostat.id, 'occupiedHeatingSetpoint', 2400, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(
+				Thermostat.id,
+				'systemMode',
+				Thermostat.SystemMode.Cool,
+				mockLogger,
+			);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(FanControl.id, 'fanMode', FanControl.FanMode.Low, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(FanControl.id, 'percentCurrent', 20, mockLogger);
+		});
+
+		it('should write OnOff false and systemMode Off for full snapshot with operation 0', async () => {
+			// Arrange
+			const snapshot = new ThinqSnapshot({
+				'airState.operation': 0,
+				'airState.tempState.current': 22,
+				'airState.tempState.target': 24,
+				'airState.opMode': 0,
+				'airState.windStrength': 2,
+			});
+
+			const updateAttributeSpy = vi.spyOn(airConditioner, 'updateAttribute').mockResolvedValue(false);
+
+			// Act
+			await applyThinqSnapshotToAirConditioner(airConditioner, snapshot, capabilities, mockLogger);
+
+			// Assert
+			expect(updateAttributeSpy).toHaveBeenCalledWith(OnOff.id, 'onOff', false, mockLogger);
+			expect(updateAttributeSpy).toHaveBeenCalledWith(
+				Thermostat.id,
+				'systemMode',
+				Thermostat.SystemMode.Off,
+				mockLogger,
+			);
 		});
 	});
 });

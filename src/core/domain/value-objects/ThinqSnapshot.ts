@@ -9,6 +9,11 @@ export class ThinqSnapshot {
 		return this.data;
 	}
 
+	public has(key: string): boolean {
+		const value = this.data[key];
+		return value !== undefined && value !== null;
+	}
+
 	public get isPowerOn(): boolean {
 		return Number(this.data['airState.operation']) === 1;
 	}
@@ -83,11 +88,7 @@ export class ThinqSnapshot {
 
 	public get powerConsumptionWatts(): number | undefined {
 		const value = this.readNumber('airState.energy.onCurrent');
-		if (value === undefined) {
-			return undefined;
-		}
-		const watts = value / 100;
-		return Number.isNaN(watts) ? undefined : watts;
+		return value === undefined || Number.isNaN(value) ? undefined : value;
 	}
 
 	private readNumber(key: string): number | undefined {
