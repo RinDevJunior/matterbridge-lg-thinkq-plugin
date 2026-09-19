@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.0-rc04] - 2026-09-19
+
+### Added
+
+- **AC swing/vane control** — expose vertical/horizontal vane swing mode as a Matter control, gated per-device by capability flag.
+- **AC humidity and air-quality sensors** — surface humidity and air-quality (AQI, PM2.5, PM10) readings as Matter sensors for supporting devices.
+- **AC energy consumption monitoring** — report instantaneous power consumption for devices that expose it.
+- **AC custom scene buttons** — optional quick-access scene buttons that switch the AC to a saved operation-mode combo with one tap.
+- **AC Jet/Quiet/Energy-save/Air-clean/LED toggles** — per-device capability-gated toggles for jet mode, quiet mode, energy-save mode, air-clean mode, and LED/display light control.
+
+<a href="https://www.buymeacoffee.com/rinnvspktr" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
+---
+
 ## [0.1.0-rc03] - 2026-09-18
 
 ### Added
