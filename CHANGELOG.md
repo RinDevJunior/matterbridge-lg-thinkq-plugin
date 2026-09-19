@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.0-rc06] - 2026-09-19
+
+### Added
+
+- **overrideMatterConfiguration** — configurable Matter Basic-Information identity (vendor name/id, product name/id) for the AC device, plus an optional per-device `productName` override (PR #9).
+
+### Fixed
+
+- **ElectricalPowerMeasurement attribute bug** — corrected the attribute name from `power` to `activePower` and fixed the missing watts-to-milliwatts unit conversion.
+- **EISDIR unhandled rejection on plugin load** — moved the MQTT certificate directory out from inside node-persist's scanned storage directory into a sibling `mqtt-certs/` directory, avoiding the crash on load.
+
+<a href="https://www.buymeacoffee.com/rinnvspktr" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
+---
+
 ## [0.1.0-rc05] - 2026-09-19
 
 ### Fixed
