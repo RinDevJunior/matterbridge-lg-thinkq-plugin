@@ -960,4 +960,126 @@ describe('buildAirConditionerEndpoint', () => {
 			expect(childEndpointNames).toContain('PowerOff');
 		});
 	});
+
+	describe('Matter override configuration (Phase G)', () => {
+		it('should use default values when no options passed', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low);
+
+			// Assert
+			expect(mockEndpoint.createDefaultBasicInformationClusterServer).toHaveBeenCalledWith(
+				mockDevice.name,
+				mockDevice.id,
+				0xfff1, // Default vendor ID
+				'Matterbridge', // Default vendor name
+				0x8000, // Default product ID
+				'Matterbridge Air Conditioner', // Default product name
+			);
+		});
+
+		it('should use override values when options with all 4 fields are passed', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low, {
+				vendorId: 4996,
+				vendorName: 'LG',
+				productId: 1,
+				productName: 'My AC',
+			});
+
+			// Assert
+			expect(mockEndpoint.createDefaultBasicInformationClusterServer).toHaveBeenCalledWith(
+				mockDevice.name,
+				mockDevice.id,
+				4996, // Custom vendor ID
+				'LG', // Custom vendor name
+				1, // Custom product ID
+				'My AC', // Custom product name
+			);
+		});
+
+		it('should fall back to defaults when only some override fields are provided', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low, {
+				productName: 'Premium AC',
+			});
+
+			// Assert
+			expect(mockEndpoint.createDefaultBasicInformationClusterServer).toHaveBeenCalledWith(
+				mockDevice.name,
+				mockDevice.id,
+				0xfff1, // Falls back to default
+				'Matterbridge', // Falls back to default
+				0x8000, // Falls back to default
+				'Premium AC', // Custom value
+			);
+		});
+
+		it('should use undefined values when options are explicitly passed as undefined', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low, {
+				vendorId: undefined,
+				vendorName: undefined,
+				productId: undefined,
+				productName: undefined,
+			});
+
+			// Assert
+			expect(mockEndpoint.createDefaultBasicInformationClusterServer).toHaveBeenCalledWith(
+				mockDevice.name,
+				mockDevice.id,
+				0xfff1, // Falls back to default when undefined
+				'Matterbridge', // Falls back to default when undefined
+				0x8000, // Falls back to default when undefined
+				'Matterbridge Air Conditioner', // Falls back to default when undefined
+			);
+		});
+
+		it('should support partial override with multiple fields', () => {
+			// Arrange
+			const capabilities = asPartial<AirConditionerCapabilities>({
+				supportsHeat: true,
+				supportsFanSpeedControl: true,
+			});
+
+			// Act
+			buildAirConditionerEndpoint(mockDevice, capabilities, setpoints, FanControl.FanMode.Low, {
+				vendorId: 0xabcd,
+				productName: 'Custom Premium AC',
+			});
+
+			// Assert
+			expect(mockEndpoint.createDefaultBasicInformationClusterServer).toHaveBeenCalledWith(
+				mockDevice.name,
+				mockDevice.id,
+				0xabcd, // Custom vendor ID
+				'Matterbridge', // Falls back to default
+				0x8000, // Falls back to default
+				'Custom Premium AC', // Custom product name
+			);
+		});
+	});
 });

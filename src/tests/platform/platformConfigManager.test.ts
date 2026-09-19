@@ -30,6 +30,13 @@ describe('PlatformConfigManager', () => {
 					clearStorageOnStartup: false,
 					forceAuthentication: false,
 					unregisterOnShutdown: false,
+					overrideMatterConfiguration: false,
+					matterOverrideSettings: {
+						matterVendorName: 'Matterbridge',
+						matterVendorId: 0xfff1,
+						matterProductName: 'LG Air Conditioner',
+						matterProductId: 0x8000,
+					},
 				},
 			});
 		});
@@ -50,6 +57,13 @@ describe('PlatformConfigManager', () => {
 						clearStorageOnStartup: true,
 						forceAuthentication: true,
 						unregisterOnShutdown: true,
+						overrideMatterConfiguration: false,
+						matterOverrideSettings: {
+							matterVendorName: 'Matterbridge',
+							matterVendorId: 0xfff1,
+							matterProductName: 'LG Air Conditioner',
+							matterProductId: 0x8000,
+						},
 					},
 				},
 			});
@@ -82,6 +96,13 @@ describe('PlatformConfigManager', () => {
 						clearStorageOnStartup: false,
 						forceAuthentication: false,
 						unregisterOnShutdown: false,
+						overrideMatterConfiguration: false,
+						matterOverrideSettings: {
+							matterVendorName: 'Matterbridge',
+							matterVendorId: 0xfff1,
+							matterProductName: 'LG Air Conditioner',
+							matterProductId: 0x8000,
+						},
 					},
 				},
 			});
@@ -100,6 +121,13 @@ describe('PlatformConfigManager', () => {
 						clearStorageOnStartup: true,
 						forceAuthentication: false,
 						unregisterOnShutdown: false,
+						overrideMatterConfiguration: false,
+						matterOverrideSettings: {
+							matterVendorName: 'Matterbridge',
+							matterVendorId: 0xfff1,
+							matterProductName: 'LG Air Conditioner',
+							matterProductId: 0x8000,
+						},
 					},
 				},
 			});
@@ -118,6 +146,13 @@ describe('PlatformConfigManager', () => {
 						clearStorageOnStartup: false,
 						forceAuthentication: true,
 						unregisterOnShutdown: false,
+						overrideMatterConfiguration: false,
+						matterOverrideSettings: {
+							matterVendorName: 'Matterbridge',
+							matterVendorId: 0xfff1,
+							matterProductName: 'LG Air Conditioner',
+							matterProductId: 0x8000,
+						},
 					},
 				},
 			});
@@ -136,6 +171,13 @@ describe('PlatformConfigManager', () => {
 						clearStorageOnStartup: false,
 						forceAuthentication: false,
 						unregisterOnShutdown: true,
+						overrideMatterConfiguration: false,
+						matterOverrideSettings: {
+							matterVendorName: 'Matterbridge',
+							matterVendorId: 0xfff1,
+							matterProductName: 'LG Air Conditioner',
+							matterProductId: 0x8000,
+						},
 					},
 				},
 			});
@@ -382,6 +424,224 @@ describe('PlatformConfigManager', () => {
 
 			const buttons = manager.getSceneButtons('device-1');
 			expect(buttons).toEqual([]);
+		});
+	});
+
+	describe('overrideMatterConfiguration getter', () => {
+		it('should return true when configured', () => {
+			const config = asPartial<LgThinkqPluginPlatformConfig>({
+				advancedFeature: {
+					settings: {
+						debug: false,
+						clearStorageOnStartup: false,
+						forceAuthentication: false,
+						unregisterOnShutdown: false,
+						overrideMatterConfiguration: true,
+						matterOverrideSettings: {
+							matterVendorName: 'LG',
+							matterVendorId: 0x1234,
+							matterProductName: 'Custom AC',
+							matterProductId: 0x5678,
+						},
+					},
+				},
+			});
+			const manager = PlatformConfigManager.create(config, mockLogger);
+
+			expect(manager.overrideMatterConfiguration).toBe(true);
+		});
+
+		it('should return false when configured', () => {
+			const config = asPartial<LgThinkqPluginPlatformConfig>({
+				advancedFeature: {
+					settings: {
+						debug: false,
+						clearStorageOnStartup: false,
+						forceAuthentication: false,
+						unregisterOnShutdown: false,
+						overrideMatterConfiguration: false,
+						matterOverrideSettings: {
+							matterVendorName: 'Matterbridge',
+							matterVendorId: 0xfff1,
+							matterProductName: 'LG Air Conditioner',
+							matterProductId: 0x8000,
+						},
+					},
+				},
+			});
+			const manager = PlatformConfigManager.create(config, mockLogger);
+
+			expect(manager.overrideMatterConfiguration).toBe(false);
+		});
+	});
+
+	describe('matterOverrideSettings getter', () => {
+		it('should return configured settings verbatim', () => {
+			const customSettings = {
+				matterVendorName: 'Custom Vendor',
+				matterVendorId: 0xabcd,
+				matterProductName: 'Premium AC',
+				matterProductId: 0xef01,
+			};
+			const config = asPartial<LgThinkqPluginPlatformConfig>({
+				advancedFeature: {
+					settings: {
+						debug: false,
+						clearStorageOnStartup: false,
+						forceAuthentication: false,
+						unregisterOnShutdown: false,
+						overrideMatterConfiguration: true,
+						matterOverrideSettings: customSettings,
+					},
+				},
+			});
+			const manager = PlatformConfigManager.create(config, mockLogger);
+
+			expect(manager.matterOverrideSettings).toEqual(customSettings);
+		});
+
+		it('should return default settings when not explicitly configured', () => {
+			const config = asPartial<LgThinkqPluginPlatformConfig>({});
+			const manager = PlatformConfigManager.create(config, mockLogger);
+
+			expect(manager.matterOverrideSettings).toEqual({
+				matterVendorName: 'Matterbridge',
+				matterVendorId: 0xfff1,
+				matterProductName: 'LG Air Conditioner',
+				matterProductId: 0x8000,
+			});
+		});
+	});
+
+	describe('getProductNameForDevice', () => {
+		it('should return undefined when overrideMatterConfiguration is false', () => {
+			const config = asPartial<LgThinkqPluginPlatformConfig>({
+				thinq: {
+					loginType: 'account',
+					country: 'US',
+					language: 'en-US',
+					devices: [
+						{
+							deviceId: 'device-1',
+							productName: 'Custom AC',
+						},
+					],
+				},
+				advancedFeature: {
+					settings: {
+						debug: false,
+						clearStorageOnStartup: false,
+						forceAuthentication: false,
+						unregisterOnShutdown: false,
+						overrideMatterConfiguration: false,
+						matterOverrideSettings: {
+							matterVendorName: 'Matterbridge',
+							matterVendorId: 0xfff1,
+							matterProductName: 'LG Air Conditioner',
+							matterProductId: 0x8000,
+						},
+					},
+				},
+			});
+			const manager = PlatformConfigManager.create(config, mockLogger);
+
+			expect(manager.getProductNameForDevice('device-1')).toBeUndefined();
+		});
+
+		it('should return undefined when device not found', () => {
+			const config = asPartial<LgThinkqPluginPlatformConfig>({
+				thinq: {
+					loginType: 'account',
+					country: 'US',
+					language: 'en-US',
+					devices: [],
+				},
+				advancedFeature: {
+					settings: {
+						debug: false,
+						clearStorageOnStartup: false,
+						forceAuthentication: false,
+						unregisterOnShutdown: false,
+						overrideMatterConfiguration: true,
+						matterOverrideSettings: {
+							matterVendorName: 'Matterbridge',
+							matterVendorId: 0xfff1,
+							matterProductName: 'LG Air Conditioner',
+							matterProductId: 0x8000,
+						},
+					},
+				},
+			});
+			const manager = PlatformConfigManager.create(config, mockLogger);
+
+			expect(manager.getProductNameForDevice('unknown-device')).toBeUndefined();
+		});
+
+		it('should return undefined when device found but productName is unset', () => {
+			const config = asPartial<LgThinkqPluginPlatformConfig>({
+				thinq: {
+					loginType: 'account',
+					country: 'US',
+					language: 'en-US',
+					devices: [
+						{
+							deviceId: 'device-1',
+						},
+					],
+				},
+				advancedFeature: {
+					settings: {
+						debug: false,
+						clearStorageOnStartup: false,
+						forceAuthentication: false,
+						unregisterOnShutdown: false,
+						overrideMatterConfiguration: true,
+						matterOverrideSettings: {
+							matterVendorName: 'Matterbridge',
+							matterVendorId: 0xfff1,
+							matterProductName: 'LG Air Conditioner',
+							matterProductId: 0x8000,
+						},
+					},
+				},
+			});
+			const manager = PlatformConfigManager.create(config, mockLogger);
+
+			expect(manager.getProductNameForDevice('device-1')).toBeUndefined();
+		});
+
+		it('should return product name when device found with productName set and override enabled', () => {
+			const config = asPartial<LgThinkqPluginPlatformConfig>({
+				thinq: {
+					loginType: 'account',
+					country: 'US',
+					language: 'en-US',
+					devices: [
+						{
+							deviceId: 'device-1',
+							productName: 'Custom AC',
+						},
+					],
+				},
+				advancedFeature: {
+					settings: {
+						debug: false,
+						clearStorageOnStartup: false,
+						forceAuthentication: false,
+						unregisterOnShutdown: false,
+						overrideMatterConfiguration: true,
+						matterOverrideSettings: {
+							matterVendorName: 'Matterbridge',
+							matterVendorId: 0xfff1,
+							matterProductName: 'LG Air Conditioner',
+							matterProductId: 0x8000,
+						},
+					},
+				},
+			});
+			const manager = PlatformConfigManager.create(config, mockLogger);
+
+			expect(manager.getProductNameForDevice('device-1')).toBe('Custom AC');
 		});
 	});
 });

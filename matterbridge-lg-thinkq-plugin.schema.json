@@ -1,6 +1,6 @@
 {
 	"title": "Matterbridge LG ThinQ + webOS Plugin",
-	"description": "matterbridge-lg-thinkq-plugin v. 0.1.0-rc05 by https://github.com/RinDevJunior",
+	"description": "matterbridge-lg-thinkq-plugin v. 0.1.0-rc06 by https://github.com/RinDevJunior",
 	"type": "object",
 	"properties": {
 		"name": {
@@ -155,6 +155,11 @@
 									},
 									"required": ["name", "opMode"]
 								}
+							},
+							"productName": {
+								"title": "Product Name Override",
+								"description": "Override the Matter product name shown for this device. Only applied when Override Matter Configuration is enabled in Advanced Features.",
+								"type": "string"
 							}
 						},
 						"required": ["deviceId"]
@@ -256,9 +261,48 @@
 							"description": "Unregister all devices on shutdown (development only)",
 							"type": "boolean",
 							"default": false
+						},
+						"overrideMatterConfiguration": {
+							"title": "Override Matter Configuration",
+							"description": "Override the Matter vendor/product identity (vendor name, vendor id, product name, product id) shown for AC devices in Apple Home / any Matter controller.",
+							"type": "boolean",
+							"default": false
 						}
 					},
-					"required": ["debug", "clearStorageOnStartup", "forceAuthentication", "unregisterOnShutdown"]
+					"required": [
+						"debug",
+						"clearStorageOnStartup",
+						"forceAuthentication",
+						"unregisterOnShutdown",
+						"overrideMatterConfiguration"
+					],
+					"dependencies": {
+						"overrideMatterConfiguration": {
+							"if": {
+								"properties": { "overrideMatterConfiguration": { "const": true } }
+							},
+							"then": {
+								"properties": {
+									"matterOverrideSettings": {
+										"title": "Matter Override Settings",
+										"type": "object",
+										"properties": {
+											"matterVendorName": { "title": "Vendor Name", "type": "string", "default": "Matterbridge" },
+											"matterVendorId": { "title": "Vendor ID", "type": "number", "default": 65521 },
+											"matterProductName": {
+												"title": "Product Name",
+												"type": "string",
+												"default": "LG Air Conditioner"
+											},
+											"matterProductId": { "title": "Product ID", "type": "number", "default": 32768 }
+										},
+										"required": ["matterVendorName", "matterVendorId", "matterProductName", "matterProductId"]
+									}
+								},
+								"required": ["matterOverrideSettings"]
+							}
+						}
+					}
 				}
 			}
 		}

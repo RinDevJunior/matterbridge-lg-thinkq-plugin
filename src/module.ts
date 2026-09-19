@@ -65,7 +65,7 @@ export class LgThinkqMatterbridgePlatform extends MatterbridgeDynamicPlatform {
 			this.log,
 			this.persist,
 			this.configManager,
-			Path.join(persistDir, 'mqtt'),
+			Path.join(this.matterbridge.matterbridgePluginDirectory, PLUGIN_NAME, 'mqtt-certs'),
 		);
 	}
 

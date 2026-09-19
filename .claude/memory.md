@@ -67,6 +67,12 @@ It is version-controlled — commit and push changes so teammates can pull the l
 - Matter's `Thermostat.Feature` has no Dry/FanOnly flag — `SystemMode.Dry(8)`/`FanOnly(7)` are ungated plain enum values; `ThermostatServer#assertSystemModeChanging` (`ThermostatServer.ts:615-634`) only forbids Heat/Cool crossing `controlSequenceOfOperation`, never Dry/FanOnly — Dry-gating is code-only (state-sync must never emit it), not a Matter feature-map concern. This same guard DOES throw `ConstraintErrorError` synchronously on `updateAttribute`-driven writes (not just user writes) if state-sync ever pushes `Heat`/`Auto` onto a `CoolingOnly` endpoint — remap defensively.
 - FanControl's `percentSetting`/`percentCurrent` are unconditionally mandatory (`conformance:"M"`, `@matter/model/.../fan-control.element.ts:33-67`) regardless of `Feature.Step` — matter.js does NOT block a percent write on a reduced/no-feature FanControl cluster; the plugin's own command handler must add the capability guard, no framework help exists. `FanModeSequence` has exactly 6 members: `OffLowMedHigh=0, OffLowHigh=1, OffLowMedHighAuto=2, OffLowHighAuto=3, OffHighAuto=4, OffHigh=5`.
 
+- `overrideMatterConfiguration` port planned (Sep 19, 2026, simplified vs Roborock): reuses existing
+  `ThinqDeviceConfigEntry.productName?` (sibling of `capabilities`/`sceneButtons`), NOT a parallel
+  `deviceProductNames[]` array. No `enableAdvancedFeature` flag exists in this repo (verified via grep,
+  zero hits) — schema gates on `settings.overrideMatterConfiguration===true` alone via `dependencies`
+  (this repo's own idiom, matching `thinq.dependencies.loginType`), not `allOf`. See `workspace/override-matter-configuration/plan.md`.
+
 ## Test Patterns
 
 - **CLI utility tests (parseArgs, maskSecret, saveSession):** pure functions/I/O mocks — `parseArgs` handles flags/values, boolean flags (`--debug` → `'true'`), consumes next arg if not flag-prefixed; `maskSecret` preserves length, returns empty for falsy, fully masks if `value.length <= visibleChars`, else `'*'.repeat(length-visible) + value.slice(-visible)`. `saveSession` via `vi.mock('node:fs')` + spy `fs.writeFileSync`; verify formatted JSON (2-space indent) matches round-trip. Don't test edge cases (e.g. `visibleChars=0`) unless in plan.

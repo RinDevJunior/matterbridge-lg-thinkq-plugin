@@ -224,7 +224,12 @@ export async function applyThinqSnapshotToAirConditioner(
 		if (powerConsumptionWatts !== undefined) {
 			const energyMonitorChild = airConditioner.getChildEndpointById('EnergyMonitor');
 			if (energyMonitorChild) {
-				await energyMonitorChild.updateAttribute(ElectricalPowerMeasurement.id, 'power', powerConsumptionWatts, logger);
+				await energyMonitorChild.updateAttribute(
+					ElectricalPowerMeasurement.id,
+					'activePower',
+					Math.round(powerConsumptionWatts * 1000),
+					logger,
+				);
 			}
 		}
 	}

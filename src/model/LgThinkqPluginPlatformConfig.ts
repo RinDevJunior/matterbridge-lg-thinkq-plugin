@@ -20,10 +20,18 @@ export interface ThinqSceneButtonConfig {
 	opMode: number;
 }
 
+export interface MatterOverrideSettings {
+	matterVendorName: string;
+	matterVendorId: number;
+	matterProductName: string;
+	matterProductId: number;
+}
+
 export interface ThinqDeviceConfigEntry {
 	deviceId: string;
 	capabilities?: ThinqDeviceCapabilityConfig;
 	sceneButtons?: ThinqSceneButtonConfig[];
+	productName?: string;
 }
 
 export interface ThinqAuthConfig {
@@ -46,6 +54,8 @@ export interface AdvancedFeatureSetting {
 	clearStorageOnStartup: boolean;
 	forceAuthentication: boolean;
 	unregisterOnShutdown: boolean;
+	overrideMatterConfiguration: boolean;
+	matterOverrideSettings: MatterOverrideSettings;
 }
 
 export interface AdvancedFeatureConfiguration {
@@ -65,6 +75,13 @@ export function createDefaultAdvancedFeature(): AdvancedFeatureConfiguration {
 			clearStorageOnStartup: false,
 			forceAuthentication: false,
 			unregisterOnShutdown: false,
+			overrideMatterConfiguration: false,
+			matterOverrideSettings: {
+				matterVendorName: 'Matterbridge',
+				matterVendorId: 0xfff1,
+				matterProductName: 'LG Air Conditioner',
+				matterProductId: 0x8000,
+			},
 		},
 	};
 }

@@ -12,7 +12,29 @@ describe('LgThinkqPluginPlatformConfig', () => {
 					clearStorageOnStartup: false,
 					forceAuthentication: false,
 					unregisterOnShutdown: false,
+					overrideMatterConfiguration: false,
+					matterOverrideSettings: {
+						matterVendorName: 'Matterbridge',
+						matterVendorId: 0xfff1,
+						matterProductName: 'LG Air Conditioner',
+						matterProductId: 0x8000,
+					},
 				},
+			});
+		});
+
+		it('should include overrideMatterConfiguration field with value false', () => {
+			const result = createDefaultAdvancedFeature();
+			expect(result.settings.overrideMatterConfiguration).toBe(false);
+		});
+
+		it('should include matterOverrideSettings with default vendor and product names', () => {
+			const result = createDefaultAdvancedFeature();
+			expect(result.settings.matterOverrideSettings).toEqual({
+				matterVendorName: 'Matterbridge',
+				matterVendorId: 0xfff1,
+				matterProductName: 'LG Air Conditioner',
+				matterProductId: 0x8000,
 			});
 		});
 

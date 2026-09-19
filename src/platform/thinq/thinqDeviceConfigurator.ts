@@ -61,6 +61,11 @@ export class ThinqDeviceConfigurator {
 			? mapWindStrengthToFanMode(snapshot.windStrength)
 			: mapWindStrengthToFixedFanMode(snapshot.windStrength);
 
+		const matterOverride = this.configManager.overrideMatterConfiguration
+			? this.configManager.matterOverrideSettings
+			: undefined;
+		const productNameOverride = this.configManager.getProductNameForDevice(device.id);
+
 		const airConditioner = buildAirConditionerEndpoint(
 			device,
 			capabilities,
@@ -73,7 +78,13 @@ export class ThinqDeviceConfigurator {
 				maxCoolSetpointLimitCelsius: 50,
 			},
 			initialFanMode,
-			{ sceneButtons },
+			{
+				sceneButtons,
+				vendorId: matterOverride?.matterVendorId,
+				vendorName: matterOverride?.matterVendorName,
+				productId: matterOverride?.matterProductId,
+				productName: productNameOverride ?? matterOverride?.matterProductName,
+			},
 		)
 			.createDefaultTemperatureMeasurementClusterServer(currentTemperature * 100)
 			.addRequiredClusterServers();

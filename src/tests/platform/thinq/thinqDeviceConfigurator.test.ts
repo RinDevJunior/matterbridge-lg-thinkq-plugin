@@ -6,6 +6,7 @@ import { ThinqSnapshot } from '../../../core/domain/value-objects/ThinqSnapshot.
 import type { PlatformConfigManager } from '../../../platform/platformConfigManager.js';
 import * as auxiliaryTogglesModule from '../../../platform/thinq/thinqAirConditionerAuxiliaryToggles.js';
 import { registerAirConditionerCommandHandlers } from '../../../platform/thinq/thinqAirConditionerCommandHandlers.js';
+import { buildAirConditionerEndpoint } from '../../../platform/thinq/thinqAirConditionerEndpointFactory.js';
 import * as sceneButtonsModule from '../../../platform/thinq/thinqAirConditionerSceneButtons.js';
 import { ThinqDeviceConfigurator } from '../../../platform/thinq/thinqDeviceConfigurator.js';
 import type { ThinqApiClient } from '../../../services/thinq/thinqApiClient.js';
@@ -21,7 +22,7 @@ vi.mock('../../../platform/thinq/thinqAirConditionerSceneButtons.js', () => ({
 vi.mock('../../../platform/thinq/thinqAirConditionerEndpointFactory.js', () => ({
 	buildAirConditionerEndpoint: vi.fn(() => ({
 		log: { debug: vi.fn(), info: vi.fn(), error: vi.fn() },
-		mode: '',
+		mode: 'server',
 		createDefaultTemperatureMeasurementClusterServer: vi.fn().mockReturnThis(),
 		addRequiredClusterServers: vi.fn().mockReturnThis(),
 	})),
@@ -55,6 +56,14 @@ function createMockConfigManager(): PlatformConfigManager {
 	return asPartial<PlatformConfigManager>({
 		getDeviceCapabilities: vi.fn().mockReturnValue(DEFAULT_AIR_CONDITIONER_CAPABILITIES),
 		getSceneButtons: vi.fn().mockReturnValue([]),
+		overrideMatterConfiguration: false,
+		matterOverrideSettings: {
+			matterVendorName: 'Matterbridge',
+			matterVendorId: 0xfff1,
+			matterProductName: 'LG Air Conditioner',
+			matterProductId: 0x8000,
+		},
+		getProductNameForDevice: vi.fn().mockReturnValue(undefined),
 	});
 }
 
@@ -306,6 +315,168 @@ describe('ThinqDeviceConfigurator', () => {
 				'registerAuxiliaryToggleCommandHandlers',
 				'registerSceneButtonCommandHandlers',
 			]);
+		});
+
+		it('should pass options with undefined override fields when overrideMatterConfiguration is false', async () => {
+			// Arrange
+			const device = createMockThinqAirConditionerDevice();
+			const buildEndpointSpy = vi.mocked(buildAirConditionerEndpoint);
+
+			// Act
+			await configurator.registerAirConditioner(device);
+
+			// Assert
+			expect(buildEndpointSpy).toHaveBeenCalledWith(
+				device,
+				expect.anything(),
+				expect.anything(),
+				expect.anything(),
+				expect.objectContaining({
+					vendorId: undefined,
+					vendorName: undefined,
+					productId: undefined,
+					productName: undefined,
+				}),
+			);
+		});
+
+		it('should pass options with matterOverrideSettings values when overrideMatterConfiguration is true and no per-device override', async () => {
+			// Arrange
+			const device = createMockThinqAirConditionerDevice();
+			const customSettings = {
+				matterVendorName: 'Custom Vendor',
+				matterVendorId: 0xabcd,
+				matterProductName: 'Premium AC',
+				matterProductId: 0xef01,
+			};
+			mockConfigManager = asPartial<PlatformConfigManager>({
+				getDeviceCapabilities: vi.fn().mockReturnValue(DEFAULT_AIR_CONDITIONER_CAPABILITIES),
+				getSceneButtons: vi.fn().mockReturnValue([]),
+				overrideMatterConfiguration: true,
+				matterOverrideSettings: customSettings,
+				getProductNameForDevice: vi.fn().mockReturnValue(undefined),
+			});
+			configurator = new ThinqDeviceConfigurator(mockLogger, mockApiClient, mockConfigManager);
+			const buildEndpointSpy = vi.mocked(buildAirConditionerEndpoint);
+
+			// Act
+			await configurator.registerAirConditioner(device);
+
+			// Assert
+			expect(buildEndpointSpy).toHaveBeenCalledWith(
+				device,
+				expect.anything(),
+				expect.anything(),
+				expect.anything(),
+				expect.objectContaining({
+					vendorId: 0xabcd,
+					vendorName: 'Custom Vendor',
+					productId: 0xef01,
+					productName: 'Premium AC', // Falls back to matterProductName
+				}),
+			);
+		});
+
+		it('should use per-device productName when available and override enabled', async () => {
+			// Arrange
+			const device = createMockThinqAirConditionerDevice();
+			const customSettings = {
+				matterVendorName: 'Custom Vendor',
+				matterVendorId: 0xabcd,
+				matterProductName: 'Premium AC',
+				matterProductId: 0xef01,
+			};
+			mockConfigManager = asPartial<PlatformConfigManager>({
+				getDeviceCapabilities: vi.fn().mockReturnValue(DEFAULT_AIR_CONDITIONER_CAPABILITIES),
+				getSceneButtons: vi.fn().mockReturnValue([]),
+				overrideMatterConfiguration: true,
+				matterOverrideSettings: customSettings,
+				getProductNameForDevice: vi.fn().mockReturnValue('Device-Specific AC'),
+			});
+			configurator = new ThinqDeviceConfigurator(mockLogger, mockApiClient, mockConfigManager);
+			const buildEndpointSpy = vi.mocked(buildAirConditionerEndpoint);
+
+			// Act
+			await configurator.registerAirConditioner(device);
+
+			// Assert
+			expect(buildEndpointSpy).toHaveBeenCalledWith(
+				device,
+				expect.anything(),
+				expect.anything(),
+				expect.anything(),
+				expect.objectContaining({
+					vendorId: 0xabcd,
+					vendorName: 'Custom Vendor',
+					productId: 0xef01,
+					productName: 'Device-Specific AC', // Per-device override takes precedence
+				}),
+			);
+		});
+
+		it('should call getProductNameForDevice with correct device id', async () => {
+			// Arrange
+			const device = createMockThinqAirConditionerDevice();
+			const customSettings = {
+				matterVendorName: 'Matterbridge',
+				matterVendorId: 0xfff1,
+				matterProductName: 'LG Air Conditioner',
+				matterProductId: 0x8000,
+			};
+			mockConfigManager = asPartial<PlatformConfigManager>({
+				getDeviceCapabilities: vi.fn().mockReturnValue(DEFAULT_AIR_CONDITIONER_CAPABILITIES),
+				getSceneButtons: vi.fn().mockReturnValue([]),
+				overrideMatterConfiguration: true,
+				matterOverrideSettings: customSettings,
+				getProductNameForDevice: vi.fn().mockReturnValue(undefined),
+			});
+			configurator = new ThinqDeviceConfigurator(mockLogger, mockApiClient, mockConfigManager);
+			const getProductNameSpy = vi.mocked(mockConfigManager.getProductNameForDevice);
+
+			// Act
+			await configurator.registerAirConditioner(device);
+
+			// Assert
+			expect(getProductNameSpy).toHaveBeenCalledWith('device-123');
+		});
+
+		it('should still pass sceneButtons in options alongside override settings', async () => {
+			// Arrange
+			const device = createMockThinqAirConditionerDevice();
+			const sceneButtons = [{ name: 'PowerOff', opMode: 0 }];
+			const customSettings = {
+				matterVendorName: 'Custom Vendor',
+				matterVendorId: 0xabcd,
+				matterProductName: 'Premium AC',
+				matterProductId: 0xef01,
+			};
+			mockConfigManager = asPartial<PlatformConfigManager>({
+				getDeviceCapabilities: vi.fn().mockReturnValue(DEFAULT_AIR_CONDITIONER_CAPABILITIES),
+				getSceneButtons: vi.fn().mockReturnValue(sceneButtons),
+				overrideMatterConfiguration: true,
+				matterOverrideSettings: customSettings,
+				getProductNameForDevice: vi.fn().mockReturnValue('Custom AC'),
+			});
+			configurator = new ThinqDeviceConfigurator(mockLogger, mockApiClient, mockConfigManager);
+			const buildEndpointSpy = vi.mocked(buildAirConditionerEndpoint);
+
+			// Act
+			await configurator.registerAirConditioner(device);
+
+			// Assert
+			expect(buildEndpointSpy).toHaveBeenCalledWith(
+				device,
+				expect.anything(),
+				expect.anything(),
+				expect.anything(),
+				expect.objectContaining({
+					sceneButtons,
+					vendorId: 0xabcd,
+					vendorName: 'Custom Vendor',
+					productId: 0xef01,
+					productName: 'Custom AC',
+				}),
+			);
 		});
 	});
 });

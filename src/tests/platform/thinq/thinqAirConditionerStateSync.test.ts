@@ -1241,8 +1241,8 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 					expect(airConditioner.getChildEndpointById).toHaveBeenCalledWith('EnergyMonitor');
 					expect(mockEnergyChild.updateAttribute).toHaveBeenCalledWith(
 						ElectricalPowerMeasurement.id,
-						'power',
-						5,
+						'activePower',
+						5000,
 						mockLogger,
 					);
 				});
@@ -1353,7 +1353,7 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 					// Assert
 					expect(mockEnergyChild.updateAttribute).toHaveBeenCalledWith(
 						ElectricalPowerMeasurement.id,
-						'power',
+						'activePower',
 						0,
 						mockLogger,
 					);
@@ -1387,8 +1387,8 @@ describe('applyThinqSnapshotToAirConditioner with auxiliary toggles (Phase A)', 
 					// Assert
 					expect(mockEnergyChild.updateAttribute).toHaveBeenCalledWith(
 						ElectricalPowerMeasurement.id,
-						'power',
-						9.99,
+						'activePower',
+						9990,
 						mockLogger,
 					);
 				});
